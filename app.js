@@ -387,17 +387,33 @@ async function call(path,method='GET',body){
 async function demoCall(path,method,body){let result={ok:true};
  if(path==='/me')return {...db,paired:true,role};
  if(path==='/config'){db.config=body;}
+
  else if(path==='/run/start'){
-  let r=db.runs.find(r=>r.task_id===body.taskId&&r.day===body.day);
-  if(!r){const t=tasksFor(body.day).find(t=>t.id===body.taskId)||{time:localTime()};const dt=new Date();const [h,m]=t.time.split(':').map(Number);const planned=new Date();planned.setHours(h,m,0,0);r={id:rand(),task_id:body.taskId,day:body.day,planned_at:planned.getTime(),started_at:nowMs(),status:'running',validation:t.validation||'self'};db.runs.unshift(r)}result.run=r;
+  let r=db.runs.find(x=>x.task_id===body.taskId&&x.day===body.day);
+  if(!r){
+   const t=tasksFor(body.day).find(x=>x.id===body.taskId);
+   if(!t||t.homeworkLauncher)throw Error('Mission introuvable');
+   if(db.runs.some(x=>x.status==='running'&&x.day===body.day))throw Error('Termine la mission en cours.');
+   const max=taskMaximum(t),goal=Number(body.goalMinutes??t.minutes);
+   if(!Number.isInteger(goal)||goal<1||goal>max)throw Error('Objectif supérieur à la limite parentale.');
+   const [h,m]=t.time.split(':').map(Number),planned=new Date();
+   planned.setHours(h,m,0,0);
+   r={id:rand(),task_id:body.taskId,day:body.day,
+    planned_at:planned.getTime(),started_at:nowMs(),status:'running',
+    validation:t.validation||'self',goal_minutes:goal,max_minutes:max};
+   db.runs.unshift(r);
+  }
+  result.run=r;
  }
  else if(path==='/run/finish'||path==='/run/offline'){
-  const r=db.runs.find(r=>r.task_id===body.taskId&&r.day===body.day);
+  const r=db.runs.find(x=>x.task_id===body.taskId&&x.day===body.day);
   if(r&&r.status==='running'){
-   const t=tasksFor(r.day).find(t=>t.id===r.task_id);
+   const t=tasksFor(r.day).find(x=>x.id===r.task_id);
    if(!t)throw Error('Mission introuvable');
    const duration=Math.max(0,Math.floor((Date.now()-r.started_at)/1000));
-   const late=Math.max(0,Math.floor((r.started_at-r.planned_at)/1000)),fast=duration<=t.minutes*60;
+   const late=Math.max(0,Math.floor((r.started_at-r.planned_at)/1000));
+   const max=Number(r.max_minutes)||taskMaximum(t),goal=Number(r.goal_minutes)||t.minutes;
+   let points;
    if(t.homeworkBlock){
     const b=db.homeworkBlocks.find(x=>x.id===t.id);
     if(!b)throw Error('Bloc introuvable');
@@ -408,22 +424,58 @@ async function demoCall(path,method,body){let result={ok:true};
      return {due:x.due,count:val};
     }).filter(x=>x.count>0);
     if(!hwSum(actual))throw Error('Indique au moins un devoir terminé');
-    const points=hwReward(actual,b.estimate,duration,r.day);
-    r.homeworkActual=actual;r.xp=points.xp;r.coins=points.coins;r.homeworkAdvance=points.advance;
+    points=hwReward(actual,goal,duration,r.day,max);
+    r.homeworkActual=actual;r.homeworkAdvance=points.advance;
    }else{
-    r.xp=10+(fast?10:0)+(late===0?15:0);
-    r.coins=5+(fast?3:0)+(late===0?5:0);
+    points=taskReward(t,goal,max,duration,late);
    }
-   r.status=r.validation==='parent'?'pending_parent':'complete';r.finished_at=Date.now();
-   r.elapsed_s=duration;r.late_s=late;
-   if(r.status==='complete'){db.wallet.xp+=r.xp;db.wallet.coins+=r.coins;if(t.homeworkBlock)hwApplyCompleted(r);}
-   result.points={xp:r.xp,coins:r.coins};result.status=r.status;
+   r.finished_at=Date.now();r.elapsed_s=duration;r.late_s=late;
+   r.xp=points.xp;r.coins=points.coins;r.overrun=points.overrun;
+   r.goal_reached=points.fast??points.goalReached;
+   r.speed_factor=points.speed;
+   if(points.overrun){
+    const proposal=latePenaltyProposal();
+    if(proposal&&(proposal.xp||proposal.coins)){
+     r.penaltyProposal=proposal;r.penaltyDecision='pending';
+    }
+   }
+   r.status=r.validation==='parent'?'pending_parent':'complete';
+   if(r.status==='complete'){
+    db.wallet.xp+=r.xp;db.wallet.coins+=r.coins;
+    if(t.homeworkBlock)hwApplyCompleted(r);
+    result.levelCoins=applyLevelRewards();
+   }
+   result.points={xp:r.xp,coins:r.coins};result.status=r.status;result.overrun=points.overrun;
+   result.penaltyPending=r.penaltyDecision==='pending';
   }
  }
  else if(path==='/run/approve'){
   const r=db.runs.find(x=>x.id===body.id&&x.status==='pending_parent');
-  if(r){r.status=body.approve?'complete':'rejected';if(body.approve){db.wallet.xp+=r.xp;db.wallet.coins+=r.coins;if(r.homeworkActual)hwApplyCompleted(r)}}
-}
+  if(r){
+   r.status=body.approve?'complete':'rejected';
+   if(body.approve){
+    db.wallet.xp+=r.xp;db.wallet.coins+=r.coins;
+    if(r.homeworkActual)hwApplyCompleted(r);
+    result.levelCoins=applyLevelRewards();
+   }else{
+    r.penaltyDecision='waived';
+   }
+  }
+ }
+ else if(path==='/run/penalty-resolve'){
+  const r=db.runs.find(x=>x.id===body.id&&x.penaltyDecision==='pending'&&x.status==='complete');
+  if(!r)throw Error('Pénalité introuvable');
+  if(body.approve){
+   const proposed=r.penaltyProposal||{};
+   const xp=Math.round(clamp(Number(proposed.xp)||0,0,20));
+   const coins=Math.round(clamp(Number(proposed.coins)||0,0,20));
+   r.penaltyApplied={xp:Math.min(db.wallet.xp,xp),coins:Math.min(db.wallet.coins,coins)};
+   db.wallet.xp=Math.max(0,db.wallet.xp-xp);
+   db.wallet.coins=Math.max(0,db.wallet.coins-coins);
+   r.penaltyDecision='approved';
+  }else r.penaltyDecision='waived';
+ }
+
  else if(path==='/plan/set'){const i=db.plans.findIndex(x=>x.day===body.day);const plan={day:body.day,plan_json:JSON.stringify(body.plan)};if(i>=0)db.plans[i]=plan;else db.plans.push(plan)}
  else if(path==='/customize'){db.config[body.kind]=body.value}
  else if(path==='/homework'){const hw={id:'hw-'+rand(),parent_uid:'demo',subject:body.subject,estimate:body.estimate,day:body.day,details:body.details,due:body.due,done:0};db.homework.push(hw);result.id=hw.id;}

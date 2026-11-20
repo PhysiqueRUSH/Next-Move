@@ -667,6 +667,9 @@ const actions={
  'change-pin':()=>{if(!confirm('Remplacer le PIN local de ce téléphone ?'))return;localStorage.removeItem(pinKey);pinUnlocked=false;render()},
  'autonomy':()=>openModal(`<h2>🧠 Palier d’autonomie</h2><p class="small muted">Le palier est indépendant du niveau XP. Sa progression nécessite ton approbation.</p><form id="autonomy-form">${selectField('Nouveau palier','rankMode',[[1,'Guidé'],[2,'Semi-autonome'],[3,'Autonome']],data.config.rankMode||1)}<button class="btn primary block">Valider le palier</button></form>`),
  'penalty':()=>penaltyModal(),
+ 'reset-open':()=>modalReset(),
+ 'penalty-approve':(_,el)=>resolvePenalty(el.dataset.id,true),
+ 'penalty-waive':(_,el)=>resolvePenalty(el.dataset.id,false),
  'pair-code':async()=>{try{const x=await call('/pair/create','POST',{});$('#pair-code').innerHTML=`<div class="notice" style="margin-top:15px;text-align:center"><b style="font-size:23px;letter-spacing:3px">${escape(x.code)}</b><p>Valable ${x.expiresInMinutes} minutes. À saisir sur le téléphone de Mahé.</p></div>`}catch(e){toast(e.message)}},
  'claim-pair':async()=>{const code=($('#join-code')?.value||'').trim();if(!code)return toast('Saisis le code de jumelage');try{await call('/pair/claim','POST',{code});await refresh(true)}catch(e){toast('Jumelage : '+e.message)}},
  'logout':()=>signOut(),
@@ -678,8 +681,44 @@ const actions={
  'notify':()=>requestNotifications()
 };
 async function resolveRun(id,approve){try{await call('/run/approve','POST',{id,approve});await refresh(true);toast(approve?'✅ Mission approuvée':'Validation refusée')}catch(e){toast(e.message)}}
+async function resolvePenalty(id,approve){
+ if(role!=='parent'||!pinUnlocked)return toast('Accès parent requis');
+ if(!confirm(approve?'Confirmer la pénalité en XP et en pièces ?':'Annuler cette pénalité ?'))return;
+ try{await call('/run/penalty-resolve','POST',{id,approve});await refresh(true);toast(approve?'Pénalité confirmée':'Pénalité annulée')}
+ catch(e){toast('Erreur : '+e.message)}
+}
 async function resolveReward(requestId,approve){try{await call('/reward/resolve','POST',{requestId,approve});await refresh(true);toast(approve?'🎁 Récompense accordée':'Demande refusée')}catch(e){toast(e.message)}}
 function futureDate(s,n){const d=new Date(s+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)}
+
+function modalReset(){
+ if(role!=='parent'||!pinUnlocked)return toast('Accès parent requis');
+ openModal(`<h2>🧹 Réinitialiser NEXT MOVE</h2>
+  <p class="small muted">Attention : cette action est irréversible sans sauvegarde. Tu peux d'abord exporter les données.</p>
+  <button class="btn block" data-action="export">⬇ Sauvegarder avant de réinitialiser</button>
+  <form id="reset-form">
+   ${selectField('Que faut-il supprimer ?','mode',[['progress','Toutes les réalisations, devoirs et gains (garder les missions programmées)'],['all','TOUT, y compris les missions programmées et les réglages']], 'progress')}
+   ${field('Ton code PIN parental','pin','password','','inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required autocomplete="off"')}
+   ${field('Pour confirmer, écris EFFACER','phrase','text','','required autocomplete="off"')}
+   <button class="btn danger block" type="submit">CONFIRMER L’EFFACEMENT</button>
+  </form>`);
+}
+async function performReset(mode,pin,phrase){
+ if(role!=='parent'||!pinUnlocked||!['progress','all'].includes(mode))throw Error('Accès parent requis');
+ if(phrase!=='EFFACER'||!(/^\d{4}$/).test(pin)||await hashPin(pin)!==localStorage.getItem(pinKey))
+  throw Error('Confirmation ou code PIN incorrect');
+ const config=mode==='all'?{...defaultConfig(false),tasks:[]}:JSON.parse(JSON.stringify(db.config));
+ db={config,runs:[],ledger:[],wallet:{xp:0,coins:0},requests:[],homework:[],homeworkDates:[],homeworkBlocks:[],plans:[],claimedLevels:[1],role:'child'};
+ saveDemo();
+ for(const key of ['nm_offline_runs','nm_offline_running','nm_state_cache'])localStorage.removeItem(key);
+ for(let n=localStorage.length-1;n>=0;n--){
+  const key=localStorage.key(n);
+  if(key&&key.startsWith('nm_notice_'))localStorage.removeItem(key);
+ }
+ data={...db};homeworkDraft={items:{},estimate:20,manualEstimate:false};
+ role='child';pinUnlocked=false;activeDay=dayNow();tab='today';
+ closeModal();render();toast('NEXT MOVE a été réinitialisé');
+}
+
 function penaltyModal(){const misses=tasksFor(dayNow()).filter(t=>!runFor(t.id,dayNow()));openModal(`<h2>🪙 Pénalité sur décision parentale</h2><p class="helper">Aucune perte de XP ni de trophées. Retrait maximal de 20 pièces, uniquement après ton accord.</p><form id="penalty-form">${selectField('Mission concernée','taskId',(misses.length?misses:tasksFor(dayNow())).map(t=>[t.id,t.title]),misses[0]?.id||'')}${field('Date','day','date',dayNow(),'required')}${field('Pièces à retirer','coins','number',3,'min="1" max="20" required')}<div class="form-actions"><button type="button" class="btn" data-action="close-modal">Annuler</button><button class="btn danger">Confirmer la pénalité</button></div></form>`)}
 async function restoreBackup(file){
  if(!file||role!=='parent'||!pinUnlocked)return toast('Accès parent requis');
@@ -715,7 +754,10 @@ function clockTick(){const el=$('#timer-num');if(!el)return;const taskId=el.data
  const remaining=goal*60-Math.floor((Date.now()-r.started_at)/1000);el.textContent=(remaining<0?'+':'')+pretty(remaining);el.classList.toggle('overtime',remaining<0);
  const cap=$('#timer-caption');if(cap)cap.textContent=remaining<0?'DÉPASSEMENT · MISSION TOUJOURS ACTIVE':'TEMPS RESTANT';const progress=$('#timer-progress');if(progress)progress.style.width=Math.min(100,Math.max(0,100*(1-remaining/(goal*60))))+'%';}
 async function onForm(event){const form=event.target;if(!form.id)return;event.preventDefault();const f=new FormData(form),get=name=>String(f.get(name)||'').trim();try{
- if(form.id==='goal-form'){
+ if(form.id==='reset-form'){
+  await performReset(get('mode'),get('pin'),get('phrase'));
+ }
+ else if(form.id==='goal-form'){
   const taskId=form.dataset.id,goal=Number(get('goal'));
   if(!Number.isInteger(goal))throw Error('Objectif invalide');
   const t=tasksFor(dayNow()).find(x=>x.id===taskId);

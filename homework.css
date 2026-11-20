@@ -50,3 +50,5 @@ button.hw-count-num{cursor:pointer}
 .hw-estimate{padding:10px 8px}
 .hw-estimate input{width:52px;font-size:16px}
 }
+
+.hw-urgent{border:1px solid #8a6338;background:#392b25;color:#ffdf9c;font-size:12px;font-weight:800;text-align:center;border-radius:11px;padding:11px;margin:8px 0}

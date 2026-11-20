@@ -692,24 +692,34 @@ function secondsLabel(seconds){
  const min=Math.floor(seconds/60),sec=seconds%60;
  return sec?min+' min '+sec+' s':min+' min';
 }
+
 function goalPreview(t,goal){
- const limit=taskHasLimit(t),late=taskProjectedLate(t),fixed=scheduleMode(t)==='fixed';
- const cap=taskCaps(t),max=taskMaximum(t),finishBy=attainableSeconds(t,goal);
+ const fixed=scheduleMode(t)==='fixed',late=taskProjectedLate(t),punctual=fixed&&late<60;
+ const limited=taskHasLimit(t),max=taskMaximum(t);
  const scenario=seconds=>taskReward(t,goal,max,seconds,late);
- const onTarget=scenario(goal*60),quick=scenario(Math.max(1,Math.round(goal*30)));
- const best=scenario(finishBy);
- const perfect=late<60||!fixed;
- return `<div class="nm-winning-rule">
-  <div class="nm-winning-label">${perfect?'🏆 COMMENT GAGNER LE MAX':'🏆 TON MAXIMUM AUJOURD’HUI'}</div>
-  <div class="nm-winning-points">${rewardString(best)}</div>
-  <div class="nm-winning-how">✅ Termine en <strong>${secondsLabel(finishBy)}</strong> ou moins.</div>
-  ${fixed?(perfect?'<div class="nm-winning-how">✅ Démarre sans retard pour garder le bonus de ponctualité.</div>':`<div class="nm-winning-note">⏰ Heure prévue : ${escape(t.time)}. Le bonus ponctualité est déjà perdu aujourd’hui. Les ${cap.xp} XP et ${cap.coins} pièces ne sont accessibles que lors d'un démarrage à l'heure.</div>`):''}
- </div>
+ const scenarioRow=(emoji,label,seconds)=>{
+  const result=scenario(seconds);
+  let detail='';
+  if(punctual){
+   const withoutPunctuality=taskReward(t,goal,max,seconds,60);
+   const bonusXp=Math.max(0,result.xp-withoutPunctuality.xp);
+   const bonusCoins=Math.max(0,result.coins-withoutPunctuality.coins);
+   detail=`<span class="nm-scenario-bonus">⏰ Dont bonus ponctualité : +${bonusXp} XP · +${bonusCoins} 🪙</span>`;
+  }
+  return `<div class="nm-scenario-row"><div class="nm-scenario-info"><span>${emoji} ${escape(label)}</span>${detail}</div><strong>${rewardString(result)}</strong></div>`;
+ };
+ const quickSeconds=Math.max(1,Math.round(goal*30));
+ const targetSeconds=Math.round(goal*60);
+ const overLimitSeconds=max*60+1;
+ return `${fixed?(punctual
+   ?'<div class="nm-punctuality-status success">✅ Bonus de ponctualité inclus dans les gains ci-dessous.</div>'
+   :`<div class="nm-punctuality-status late">⏰ Horaire prévu : ${escape(t.time)}. Il est dépassé : pas de bonus de ponctualité.</div>`):''}
  <div class="nm-scenario-list" aria-live="polite">
-  <div class="nm-scenario-row"><span>🎯 En ${secondsLabel(goal*60)}</span><strong>${rewardString(onTarget)}</strong></div>
-  ${quick.xp>onTarget.xp||quick.coins>onTarget.coins?`<div class="nm-scenario-row"><span>⚡ En ${secondsLabel(Math.max(1,Math.round(goal*30)))}</span><strong>${rewardString(quick)}</strong></div>`:''}
+ ${scenarioRow('🎯',`En ${secondsLabel(targetSeconds)}`,targetSeconds)}
+ ${scenarioRow('⚡',`En ${secondsLabel(quickSeconds)}`,quickSeconds)}
+ ${limited?scenarioRow('⌛',`Après la limite de ${max} min`,overLimitSeconds):''}
  </div>
- <p class="nm-cap-note">${limit?`Limite parentale : ${max} min. Passé ce temps : aucun gain.`:'Aucune limite de temps.'}</p>`;
+ <p class="nm-cap-note">${limited?`Temps limite fixé par le parent : ${max} min. Au-delà : 0 gain.`:'Aucune limite de temps.'}</p>`;
 }
 function refreshGoalPreview(){
  const input=$('#goal-minutes'),box=$('#goal-preview');
@@ -1036,7 +1046,14 @@ function checkLocalChallenges(){
   toast('⚡ DÉFI NEXT MOVE : '+t.title+' — À toi de jouer !');beep(740,.1);
  }
 }
-function clockTick(){const el=$('#timer-num');if(!el)return;const taskId=el.dataset.task,t=tasksFor(activeDay).find(x=>x.id===taskId),r=runFor(taskId,activeDay);if(!t||!r||r.status!=='running')return;
+let goalPreviewMinuteSeen='';
+function clockTick(){
+ const goalInput=$('#goal-minutes');
+ if(goalInput){
+  const currentMinute=dayNow()+' '+localTime();
+  if(currentMinute!==goalPreviewMinuteSeen){goalPreviewMinuteSeen=currentMinute;refreshGoalPreview();}
+ }
+ const el=$('#timer-num');if(!el)return;const taskId=el.dataset.task,t=tasksFor(activeDay).find(x=>x.id===taskId),r=runFor(taskId,activeDay);if(!t||!r||r.status!=='running')return;
  const goal=Number(r.goal_minutes)||Number(t.minutes)||1;
  const remaining=goal*60-Math.floor((Date.now()-r.started_at)/1000);el.textContent=(remaining<0?'+':'')+pretty(remaining);el.classList.toggle('overtime',remaining<0);
  const cap=$('#timer-caption');if(cap)cap.textContent=(r.has_time_limit!==false&&taskHasLimit(t)&&(Date.now()-r.started_at)>(Number(r.max_minutes)||taskMaximum(t))*60000)?'LIMITE DÉPASSÉE · AUCUN GAIN':remaining<0?'OBJECTIF DÉPASSÉ · CONTINUE':'TEMPS RESTANT';const progress=$('#timer-progress');if(progress)progress.style.width=Math.min(100,Math.max(0,100*(1-remaining/(goal*60))))+'%';}

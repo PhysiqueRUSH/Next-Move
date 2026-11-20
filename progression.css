@@ -41,19 +41,24 @@
 .hw-reward-preview span{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:3px 9px;background:#18304b;border:1px solid #314c68;padding:11px 12px;border-radius:12px;font-size:12px;color:#d7ecfa}
 .hw-reward-preview strong{font-size:13px;color:#fff0ac}
 
-/* Règle de réussite immédiatement visible avant le chrono */
-.nm-winning-rule{padding:15px 14px 14px;border:1px solid #42b5ae;border-radius:17px;background:linear-gradient(155deg,#144752,#132c44);margin:15px 0 10px;text-align:left;box-shadow:0 0 20px #38c8c615}
-.nm-winning-label{color:#a7faf0;font-weight:900;letter-spacing:.5px;font-size:12px;text-align:center}
-.nm-winning-points{font-size:clamp(20px,5.5vw,28px);font-weight:950;color:#f9fdff;text-align:center;line-height:1.3;margin:8px 0 11px}
-.nm-winning-how{font-weight:740;color:#edfbff;font-size:13px;line-height:1.45;margin-top:5px;text-align:center}
-.nm-winning-how strong{color:#87fff0}
-.nm-winning-note{font-size:12px;color:#ffdc9e;line-height:1.5;margin-top:10px;padding:10px 11px;background:#56392370;border:1px solid #805b40;border-radius:10px;text-align:center}
-.nm-scenario-list{margin:12px 0 6px}
-.nm-scenario-row{padding:9px 12px}
+/* Aperçu de gains compact : ponctualité visible dans chaque scénario */
+.nm-punctuality-status{font-size:12px;font-weight:750;line-height:1.5;text-align:center;margin:13px 0 8px;padding:10px 12px;border-radius:12px}
+.nm-punctuality-status.success{color:#b1f4db;background:#15413c;border:1px solid #397b6c}
+.nm-punctuality-status.late{color:#ffdfaa;background:#42352d;border:1px solid #866949}
+.nm-scenario-list{margin:11px 0 8px;display:flex;flex-direction:column;gap:10px}
+.nm-scenario-row{padding:14px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px 14px;background:#1a2d44;border:1px solid #3f6280;border-radius:14px}
 .nm-scenario-row:first-child{border-color:#3b8b99;background:#173a4b}
+.nm-scenario-row strong{font-size:14px;white-space:nowrap;color:#75f4e8}
+.nm-scenario-info{display:flex;flex-direction:column;gap:5px;min-width:0;color:#eaf6ff;font-size:13px;font-weight:750}
+.nm-scenario-bonus{font-size:11px;color:#9aefd8;font-weight:750;line-height:1.35}
+.nm-cap-note{text-align:center;font-size:12px;line-height:1.5;color:#a9c2db;margin:12px 3px 14px}
 .hw-maximum{font-size:12px;line-height:1.5}
 .hw-maximum strong{color:#a6faf3}
 .hw-maximum small{font-size:11px;color:#9fb5c9}
+@media(max-width:390px){
+ .nm-scenario-row{flex-wrap:wrap}
+ .nm-scenario-row strong{margin-left:auto}
+}
 
 /* Validation parentale : temps verrouillé, gains en attente */
 .nm-awaiting-card{border-color:#6e75b9;background:linear-gradient(150deg,#253152,#131e34);box-shadow:0 0 25px #6f70f921}

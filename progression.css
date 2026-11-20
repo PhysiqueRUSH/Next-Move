@@ -30,3 +30,13 @@
 .frame-gold{box-shadow:0 0 32px #ffd36b,0 0 14px #ffe9a1 inset!important}
 .frame-ultra{box-shadow:0 0 34px #ab68ff,0 0 21px #49f9ec inset!important}
 @media(min-width:540px){.level-reward-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+
+/* Prévisualisation claire des gains avant lancement */
+.nm-scenario-list{display:flex;flex-direction:column;gap:9px;margin:18px 0 12px}
+.nm-scenario-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px 12px;border-radius:13px;padding:12px 13px;background:#172b43;border:1px solid #315470;color:#d6eafa;font-size:12px}
+.nm-scenario-row strong{font-size:14px;color:#71f8ea;white-space:nowrap}
+.nm-scenario-row:first-child{border-color:#3b8b99;background:#173a4b}
+.nm-cap-note{font-size:12px;line-height:1.5;text-align:center;color:#aec5da;margin:12px 2px 20px}
+.hw-reward-preview{display:flex;flex-direction:column;align-items:stretch;gap:8px;margin:13px 0}
+.hw-reward-preview span{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:3px 9px;background:#18304b;border:1px solid #314c68;padding:11px 12px;border-radius:12px;font-size:12px;color:#d7ecfa}
+.hw-reward-preview strong{font-size:13px;color:#fff0ac}

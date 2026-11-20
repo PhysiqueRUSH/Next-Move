@@ -118,7 +118,7 @@ async function main(){
  assert.match(t.renderToday(),/mission|Rien de prévu|défis/i);
  assert.match(t.renderAdminSettings(),/Gains maximum par devoir/);
  assert.match(t.renderAdminSettings(),/Les tâches sans limite/);
- assert.match(t.goalPreview(normal,10),/Dans ton objectif/);
+ assert.match(t.goalPreview(normal,10),/En 10 min/);
  assert.match(t.renderAdminSettings(),/Effacer et recommencer/);
  assert.match(t.renderAdminStats(),/Dépassements à examiner/);
  const originalXp=t.db.wallet.xp;

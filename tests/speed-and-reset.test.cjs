@@ -125,21 +125,14 @@ async function main(){
  assert.equal(t.db.wallet.xpBank,Math.max(0,walletBefore.xpBank-5));
  assert.equal(t.db.wallet.coins,Math.max(0,walletBefore.coins-3));
 
- const xpBefore=t.db.wallet.xp;
- const availableBefore=t.db.wallet.xpBank;
- const coinsBefore=t.db.wallet.coins;
- t.db.config.xpPerCoin=20;t.setData();
- assert.ok(availableBefore>=20);
- const exchange=await t.demoCall('/xp/convert','POST',{coins:1});
- assert.equal(exchange.exchange.xp,20);
- assert.equal(t.db.wallet.xp,xpBefore);
- assert.equal(t.db.wallet.xpBank,availableBefore-20);
- assert.equal(t.db.wallet.coins,coinsBefore+1);
- assert.equal(t.db.exchanges.length,1);
+ const previousXp=t.db.wallet.xp,previousCoins=t.db.wallet.coins;
+ await assert.rejects(t.demoCall('/xp/convert','POST',{coins:1}),/supprimée/);
+ assert.equal(t.db.wallet.xp,previousXp,'Removed exchange must leave XP untouched');
+ assert.equal(t.db.wallet.coins,previousCoins,'Removed exchange must never generate coins');
  t.setData();
- assert.match(t.renderShop(),/Convertir mes XP en pièces/);
- assert.match(t.renderShop(),/Mes dernières conversions/);
- await assert.rejects(t.demoCall('/xp/convert','POST',{coins:1000}),/XP disponibles/);
+ assert.match(t.renderShop(),/CADEAUX/);
+ assert.doesNotMatch(t.renderShop(),/Convertir mes XP en pièces|nm-convert|Mes dernières conversions/);
+ assert.doesNotMatch(t.renderAdminSettings(),/xpPerCoin|Échanger des XP contre des pièces/);
 
  assert.equal(t.LEVEL_REWARDS.avatar.length>=25,true,'Large avatar catalog');
  assert.equal(t.LEVEL_REWARDS.frame.length>=10,true,'Varied frame collection');

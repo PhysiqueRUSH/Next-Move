@@ -322,9 +322,41 @@ function renderChallenges(){const done=data.runs.filter(r=>r.status==='complete'
 function renderShop(){return `<div class="row between" style="margin:10px 0 20px"><h2 style="margin:0">🪙 BOUTIQUE XP</h2><span class="pill gold">${data.wallet.coins} pièces</span></div><div class="stack">${(data.config.rewards||[]).filter(r=>r.active!==false).map(r=>`<div class="reward"><span class="emoji">${escape(r.icon||'🎁')}</span><div class="info"><strong>${escape(r.name)}</strong><p>🎟️ ${r.cost} pièces · Approbation parentale</p></div><button class="btn mini primary" data-action="request-reward" data-id="${escape(r.id)}" ${data.wallet.coins<r.cost?'disabled':''}>Obtenir</button></div>`).join('')}
  <section class="card"><h2>📜 Mes demandes</h2>${(data.requests||[]).slice(0,12).map(r=>`<div class="mission"><span class="time">${r.cost}🪙</span><div class="info"><strong>${escape(data.config.rewards.find(x=>x.id===r.reward_id)?.name||'Récompense')}</strong><p>${r.status==='pending'?'⏳ En attente du parent':r.status==='approved'?'✅ Accordée':'❌ Non validée'}</p></div></div>`).join('')||'<p class="small muted">Aucune demande pour l’instant.</p>'}</section></div>`}
 function rankName(n){return n>=15?'Légende':n>=10?'Élite':n>=7?'Champion':n>=4?'Explorateur':'Recrue'}
-function renderProfile(){const lvl=levelInfo(data.wallet.xp),all=data.runs.filter(r=>r.status==='complete');return `<section class="hero center"><div class="profile-portrait frame-${escape(data.config.frame||'neon')}">${escape(data.config.avatar||'🚀')}</div><h1>${escape(data.config.childName||'Mahé')}</h1><span class="pill cyan">NIVEAU ${lvl.n} · ${escape(data.config.title||rankName(lvl.n))}</span><div style="margin:18px 0">${walletBadge()}</div><div class="progress"><span style="width:${lvl.progress}%"></span></div><p>${lvl.current} / ${lvl.needed} XP vers le niveau ${lvl.n+1}</p></section>
- <section class="card" style="margin-top:14px"><h2>📈 Mes records</h2><div class="grid3"><div class="stat"><span class="small muted">Missions</span><strong>${all.length}</strong></div><div class="stat"><span class="small muted">Sans retard</span><strong>${all.filter(r=>r.late_s===0).length}</strong></div><div class="stat"><span class="small muted">Trophées</span><strong>${badges.filter(b=>b[2]()).length}</strong></div></div></section>
- <section class="card" style="margin-top:14px"><h2>🎨 Mon profil à débloquer</h2><div class="grid3">${[['🚀',1],['🦾',3],['🥷',5],['🛸',7],['👑',10],['🐉',15]].map(([icon,unlock])=>`<button class="btn" data-action="avatar" data-id="${icon}" ${lvl.n<unlock?'disabled':''}>${icon}<br><span class="tiny">Niv. ${unlock}</span></button>`).join('')}</div><div class="divider"></div><h3>Cadres débloqués</h3><div class="row wrap">${[['neon',1],['plasma',4],['legendary',10]].map(([v,l])=>`<button class="btn mini" data-action="frame" data-id="${v}" ${lvl.n<l?'disabled':''}>${v} · Niv. ${l}</button>`).join('')}</div><div class="divider"></div><h3>Titres à débloquer</h3><div class="row wrap">${[['Recrue',1],['Sprinter',3],['Stratège',6],['Légende',12]].map(([v,l])=>`<button class="btn mini" data-action="title" data-id="${v}" ${lvl.n<l?'disabled':''}>${v} · Niv. ${l}</button>`).join('')}</div><div class="divider"></div>${connected?'<button class="btn primary block" style="margin:12px 0" data-action="notify">🔔 Activer les notifications-défis</button>':''}<div class="row between"><span class="small muted">Effets sonores</span><button class="btn mini" data-action="toggle-sound">${localStorage.getItem('nm_mute')==='yes'?'Réactiver':'Couper'} les sons</button></div></section>`}
+
+const LEVEL_REWARDS={
+ avatar:[['🚀',1,'Pilote'],['⚡',2,'Flash'],['🦾',3,'Force'],['🏎️',4,'Turbo'],['🥷',5,'Ninja'],['🎯',6,'Cible'],['🛸',7,'OVNI'],['🔥',8,'Flamme'],['🪐',9,'Cosmos'],['👑',10,'Roi'],['🐺',11,'Loup'],['🦈',12,'Requin'],['🦅',13,'Aigle'],['🐆',14,'Panthère'],['🐉',15,'Dragon'],['🧠',16,'Cerveau'],['💎',17,'Diamant'],['🤖',18,'Robot'],['🦊',19,'Renard'],['🏆',20,'Champion'],['🛡️',22,'Bouclier'],['🌩️',24,'Orage'],['🌌',26,'Galaxie'],['🦁',28,'Lion'],['🌠',30,'Étoile'],['🗿',35,'Titan'],['☄️',40,'Comète']],
+ frame:[['neon',1,'Néon'],['plasma',3,'Plasma'],['ice',5,'Givre'],['ember',7,'Braises'],['matrix',9,'Matrix'],['legendary',10,'Légendaire'],['cosmic',12,'Cosmos'],['royal',15,'Royal'],['storm',18,'Tempête'],['diamond',21,'Diamant'],['gold',25,'Or'],['ultra',30,'Ultra']],
+ title:[['Recrue',1,'Recrue'],['Explorateur',2,'Explorateur'],['Sprinter',3,'Sprinter'],['Éclaireur',4,'Éclaireur'],['Stratège',6,'Stratège'],['Pilote',7,'Pilote'],['Turbo',8,'Turbo'],['Maître du chrono',9,'Maître du chrono'],['Champion',10,'Champion'],['As de l’avance',11,'As de l’avance'],['Élite',12,'Élite'],['Implacable',13,'Implacable'],['Ninja du temps',14,'Ninja du temps'],['Légende',15,'Légende'],['Commandant',16,'Commandant'],['Maître des quêtes',18,'Maître des quêtes'],['Invincible',20,'Invincible'],['Architecte du temps',22,'Architecte du temps'],['Supernova',24,'Supernova'],['Virtuose',26,'Virtuose'],['Grand stratège',28,'Grand stratège'],['Boss final',30,'Boss final']]
+};
+const LEVEL_MILESTONES=[[2,'🎯','Premiers pas'],[3,'⚡','Départ fulgurant'],[5,'🥉','Bronze'],[7,'🚀','Décollage'],[10,'🥈','Argent'],[12,'💎','Diamant'],[15,'🥇','Or'],[20,'🏆','Champion'],[25,'🌟','Superstar'],[30,'🐉','Légende'],[40,'👑','Mythique']];
+function renderLevelRewards(kind,label){
+ const lvl=levelInfo(data.wallet.xp).n,items=LEVEL_REWARDS[kind],won=items.filter(x=>x[1]<=lvl).length,active=String(data.config[kind]||'');
+ return `<details class="level-reward-panel"><summary><span>${label}</span><span>${won}/${items.length} débloqués ▾</span></summary>
+  <div class="level-reward-grid">${items.map(([value,need,title])=>`<button class="level-reward-option ${active===String(value)?'selected':''}" data-action="${kind}" data-id="${escape(value)}" ${lvl<need?'disabled':''}>
+   <span class="level-reward-icon">${kind==='avatar'?escape(value):kind==='frame'?'⬡':'✦'}</span><strong>${escape(title)}</strong><small>${lvl>=need?'✓ Disponible':'🔒 Niveau '+need}</small>
+  </button>`).join('')}</div>
+ </details>`;
+}
+function renderProfile(){
+ const lvl=levelInfo(data.wallet.xp),all=data.runs.filter(r=>r.status==='complete');
+ return `<section class="hero center"><div class="profile-portrait frame-${escape(data.config.frame||'neon')}">${escape(data.config.avatar||'🚀')}</div>
+ <h1>${escape(data.config.childName||'Mahé')}</h1><span class="pill cyan">NIVEAU ${lvl.n} · ${escape(data.config.title||rankName(lvl.n))}</span>
+ <div style="margin:18px 0">${walletBadge()}</div><div class="progress"><span style="width:${lvl.progress}%"></span></div>
+ <p>${lvl.current} / ${lvl.needed} XP vers le niveau ${lvl.n+1}</p><p class="nm-level-bonus">🎁 Prochain niveau : +${levelCoins(lvl.n+1)} pièces</p></section>
+ <section class="card" style="margin-top:14px"><h2>📈 Mes records</h2><div class="grid3">
+  <div class="stat"><span class="small muted">Missions</span><strong>${all.length}</strong></div>
+  <div class="stat"><span class="small muted">Sans retard</span><strong>${all.filter(r=>r.late_s===0).length}</strong></div>
+  <div class="stat"><span class="small muted">Médailles</span><strong>${LEVEL_MILESTONES.filter(x=>x[0]<=lvl.n).length}</strong></div></div></section>
+ <section class="card" style="margin-top:14px"><h2>🎮 Récompenses de niveaux</h2><p class="small muted">Gagne des pièces et débloque des personnalisations à chaque niveau.</p>
+ ${renderLevelRewards('avatar','👾 Avatars')}
+ ${renderLevelRewards('frame','💠 Cadres')}
+ ${renderLevelRewards('title','🏷️ Titres')}
+ <details class="level-reward-panel"><summary><span>🏅 Médailles</span><span>${LEVEL_MILESTONES.filter(x=>x[0]<=lvl.n).length}/${LEVEL_MILESTONES.length} ▾</span></summary><div class="level-reward-grid">
+ ${LEVEL_MILESTONES.map(([need,icon,title])=>`<div class="level-reward-option ${lvl.n>=need?'selected':''}"><span class="level-reward-icon">${icon}</span><strong>${title}</strong><small>${lvl.n>=need?'✓ Gagnée':'🔒 Niveau '+need}</small></div>`).join('')}
+ </div></details>
+ <div class="row between" style="margin-top:18px"><span class="small muted">Effets sonores</span><button class="btn mini" data-action="toggle-sound">${localStorage.getItem('nm_mute')==='yes'?'Réactiver':'Couper'} les sons</button></div>
+ </section>`;
+}
 function renderAdmin(){switch(adminTab){case 'tasks':return renderAdminTasks();case 'calendar':return renderAdminCalendar();case 'rewards':return renderAdminRewards();case 'settings':return renderAdminSettings();default:return renderAdminStats();}}
 function adminHeading(title,detail=''){return `<div class="section-title"><h2>${title}</h2></div>`}
 function renderAdminStats(){const last7=data.runs.filter(r=>r.day>=futureDays(-6)&&r.status==='complete'),total=data.runs.filter(r=>r.status==='complete');const started=data.runs.filter(r=>r.started_at),prompt=started.filter(r=>r.late_s===0).length,early=started.length?Math.round(prompt/started.length*100):0;const avg=started.length?Math.round(started.reduce((a,r)=>a+(r.late_s||0),0)/started.length/60):0;const approved=data.runs.filter(r=>r.status==='pending_parent'),redeems=data.requests.filter(r=>r.status==='pending'),penalties=data.runs.filter(r=>r.penaltyDecision==='pending'&&r.status==='complete');
@@ -493,7 +525,11 @@ async function demoCall(path,method,body){let result={ok:true};
  }
 
  else if(path==='/plan/set'){const i=db.plans.findIndex(x=>x.day===body.day);const plan={day:body.day,plan_json:JSON.stringify(body.plan)};if(i>=0)db.plans[i]=plan;else db.plans.push(plan)}
- else if(path==='/customize'){db.config[body.kind]=body.value}
+ else if(path==='/customize'){
+  const options=LEVEL_REWARDS[body.kind],selected=options?.find(x=>x[0]===body.value);
+  if(!selected||levelInfo(db.wallet.xp).n<selected[1])throw Error('Pas encore débloqué');
+  db.config[body.kind]=body.value;
+ }
  else if(path==='/homework'){const hw={id:'hw-'+rand(),parent_uid:'demo',subject:body.subject,estimate:body.estimate,day:body.day,details:body.details,due:body.due,done:0};db.homework.push(hw);result.id=hw.id;}
  else if(path==='/homework/delete'){db.homework=db.homework.filter(h=>h.id!==body.id)}
  else if(path==='/reward/request'){const r=db.config.rewards.find(x=>x.id===body.rewardId);if(db.wallet.coins<r.cost)throw Error('NOT_ENOUGH_COINS');db.requests.unshift({id:rand(),reward_id:r.id,cost:r.cost,status:'pending',created_at:Date.now()});}
@@ -545,7 +581,7 @@ async function finishTask(taskId){const run=runFor(taskId,activeDay);if(!run||ru
  try{const result=await call('/run/finish','POST',{taskId,day:activeDay});await refresh(true);
   if(result.status==='pending_parent')toast('⏳ Mission terminée, validation parentale en attente');
   else if(result.overrun)toast(result.penaltyPending?'⏳ Temps dépassé · décision du parent attendue':'⌛ Temps dépassé · aucun gain');
-  else celebration('Mission terminée ! +'+result.points.xp+' XP')}catch(e){
+  else celebration('Mission terminée ! +'+result.points.xp+' XP'+(result.levelCoins?' · +'+result.levelCoins+' pièces de niveau':''))}catch(e){
   if(!navigator.onLine||e instanceof TypeError){const end=Date.now(),q=offlineRuns();q.push({taskId,day:activeDay,startedAt:run.started_at,finishedAt:end});saveOfflineRuns(q);run.status='pending_parent';run.finished_at=end;render();toast('Hors ligne : résultat enregistré. Validation parentale au retour du réseau.');}
   else toast('Erreur : '+e.message)
  }
@@ -811,7 +847,7 @@ async function onForm(event){const form=event.target;if(!form.id)return;event.pr
   closeModal();await refresh(true);homeworkDraft.manualEstimate=false;
   if(result.status==='pending_parent')toast('Bloc terminé · en attente de validation');
   else if(result.overrun)toast(result.penaltyPending?'⌛ Limite dépassée · pénalité à valider par le parent':'⌛ Limite dépassée · aucun gain');
-  else celebration('Bloc validé · +'+result.points.xp+' XP !');
+  else celebration('Bloc validé · +'+result.points.xp+' XP'+(result.levelCoins?' · +'+result.levelCoins+' pièces de niveau':''));
  }
  else if(form.id==='category-form'){const c=cloneConfig(),name=get('categoryName');if(!name)throw Error('Nom manquant');if(!Array.isArray(c.categories))c.categories=[...CATEGORY];const idx=form.dataset.id;if(idx===''){if(c.categories.length>=20)throw Error('Maximum 20 catégories');c.categories.push(name)}else c.categories[Number(idx)]=name;closeModal();await updateConfig(c)}
  else if(form.id==='task-form'){const c=cloneConfig(),identifier=form.dataset.id||rand(),old=c.tasks.find(x=>x.id===identifier)||{};

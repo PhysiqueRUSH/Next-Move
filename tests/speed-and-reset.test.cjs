@@ -5,7 +5,7 @@ const assert=require('node:assert/strict');
 let source=fs.readFileSync('app.js','utf8');
 const end=/bootstrap\(\);\s*\}\)\(\);\s*$/;
 assert.match(source,end);
-source=source.replace(end,"globalThis.__test={db,task,dayNow,dayOf,taskReward,hwReward,homeworkCaps,taskMaximum,scheduleMode,taskHasLimit,goalPreview,levelInfo,levelCoins,applyLevelRewards,runFor,demoCall,resetState,renderToday,renderProfile,renderAdminSettings,renderAdminStats,renderHomework,LEVEL_REWARDS,LEVEL_MILESTONES,setData:()=>{data={...db}},currentDb:()=>db};\n})();");
+source=source.replace(end,"globalThis.__test={db,task,dayNow,dayOf,taskReward,hwReward,homeworkCaps,taskMaximum,scheduleMode,taskHasLimit,goalPreview,levelInfo,levelCoins,applyLevelRewards,runFor,demoCall,resetState,renderToday,renderProfile,renderAdminSettings,renderAdminStats,renderHomework,renderPlanning,tasksFor,getActive,LEVEL_REWARDS,LEVEL_MILESTONES,setData:()=>{data={...db}},currentDb:()=>db};\n})();");
 const storage=new Map();
 const localStorage={
  getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,String(v)),
@@ -44,12 +44,17 @@ async function main(){
  assert.equal(created.run.goal_minutes,10);
  assert.equal(created.run.max_minutes,15);
  assert.equal(created.run.status,'running');
+ assert.deepEqual({...created.run.reward_caps},{xp:45,coins:15},'Start captures parent reward caps');
+ normal.xpMax=500;normal.coinsMax=500;
+ t.setData();
  // End with a plausible faster run
  created.run.started_at=Date.now()-2*60*1000;
  created.run.planned_at=created.run.started_at;
  const finish=await t.demoCall('/run/finish','POST',{taskId:'speed-test',day});
  assert.equal(finish.status,'complete');
  assert.ok(finish.points.xp>0);
+ assert.ok(finish.points.xp<=45&&finish.points.coins<=15,'Later cap changes cannot affect a started run');
+ normal.xpMax=45;normal.coinsMax=15;t.setData();
 
  const free=t.task('free-test','Lecture libre',7,'18:00',12,[0,1,2,3,4,5,6],{modes:['school','weekend','vacation'],maxMinutes:5,hasTimeLimit:false,scheduleMode:'flexible',xpMax:22,coinsMax:8});
  assert.equal(t.scheduleMode(free),'flexible');
@@ -63,6 +68,9 @@ async function main(){
  assert.equal(freeRun.run.max_minutes,null,'Unlimited task has no max time');
  assert.equal(freeRun.run.planned_at,freeRun.run.started_at,'Free schedule has no start delay');
  freeRun.run.started_at=Date.now()-7000*1000;
+ assert.match(t.renderPlanning(),/À heure fixe/);
+ assert.match(t.renderPlanning(),/Quand je veux/);
+ assert.match(t.goalPreview(free,30),/Aucune limite de temps/);
  const freeFinish=await t.demoCall('/run/finish','POST',{taskId:'free-test',day});
  assert.equal(freeFinish.penaltyPending,false,'Unlimited task must never be penalized');
  assert.ok(freeFinish.points.xp>0,'Unlimited actual run still yields XP');
@@ -95,6 +103,7 @@ async function main(){
  assert.match(t.renderHomework(),/Mon bloc/);
  assert.match(t.renderToday(),/mission|Rien de prévu|défis/i);
  assert.match(t.renderAdminSettings(),/Gains maximum par devoir/);
+ assert.match(t.renderAdminSettings(),/Les tâches sans limite/);
  assert.match(t.goalPreview(normal,10),/Dans ton objectif/);
  assert.match(t.renderAdminSettings(),/Effacer et recommencer/);
  assert.match(t.renderAdminStats(),/Dépassements à examiner/);

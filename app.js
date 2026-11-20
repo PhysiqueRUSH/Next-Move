@@ -17,7 +17,7 @@ const CATEGORY=['🌅 Routine du matin','🎒 Cartable','📚 Devoirs','🧺 Ran
 const categoryList=()=>(data?.config?.categories?.length?data.config.categories:CATEGORY);
 const SUBJECTS=['Maths','Français','Histoire-Géo','Anglais','SVT','Physique-Chimie','Technologie','Espagnol','Autre'];
 const WEEK=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
-const task=(id,title,category,time,minutes,days=[1,2,3,4,5],options={})=>({id,title,category,time,minutes,maxMinutes:minutes,days,modes:['school'],validation:'self',priority:2,carry:'expire',notify:true,enabled:true,locked:false,steps:[],...options});
+const task=(id,title,category,time,minutes,days=[1,2,3,4,5],options={})=>({id,title,category,time,minutes,maxMinutes:Math.min(240,minutes+Math.max(5,Math.ceil(minutes*.5))),days,modes:['school'],validation:'self',priority:2,carry:'expire',notify:true,enabled:true,locked:false,steps:[],...options});
 function defaultConfig(enable=false){return {
  version:1,childName:'Mahé',categories:[...CATEGORY],avatar:'🚀',frame:'neon',title:'Recrue',xpName:'XP',parentPinHint:'',pronoteUrl:cfg.pronoteUrl||'',
  tasks:[
@@ -68,7 +68,7 @@ function levelInfo(xp){let n=1;while(xp>=n*n*100)n++;const lo=(n-1)**2*100,hi=n*
 
 const clamp=(v,min,max)=>Math.min(max,Math.max(min,v));
 const validTime=v=>Number.isFinite(Number(v))&&Number(v)>=1;
-function taskMaximum(t){const def=validTime(t?.minutes)?Number(t.minutes):15;return Math.round(clamp(validTime(t?.maxMinutes)?Number(t.maxMinutes):def,1,240));}
+function taskMaximum(t){const def=validTime(t?.minutes)?Number(t.minutes):15;return Math.round(clamp(validTime(t?.maxMinutes)?Number(t.maxMinutes):def+Math.max(5,Math.ceil(def*.5)),1,240));}
 function homeworkMaximum(count){return Math.round(clamp(Math.max(1,Number(count)||1)*Number(data.config.homeworkMaxPer||30),5,240));}
 function speedFactor(seconds,maxMinutes){return clamp(1-Math.max(0,Number(seconds))/Math.max(60,Number(maxMinutes)*60),0,1);}
 function goalReached(seconds,goalMinutes){return Number(seconds)<=Math.max(1,Number(goalMinutes))*60;}
@@ -748,6 +748,7 @@ function modalReset(){
 function resetState(mode){
  if(!['progress','all'].includes(mode))throw Error('Mode de remise à zéro invalide');
  const config=mode==='all'?{...defaultConfig(false),tasks:[]}:JSON.parse(JSON.stringify(db.config));
+ config.avatar='🚀';config.frame='neon';config.title='Recrue';
  db={config,runs:[],ledger:[],wallet:{xp:0,coins:0},requests:[],homework:[],homeworkDates:[],homeworkBlocks:[],plans:[],claimedLevels:[1],role:'child'};
  saveDemo();
  for(const key of ['nm_offline_runs','nm_offline_running','nm_state_cache'])localStorage.removeItem(key);

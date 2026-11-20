@@ -433,6 +433,38 @@ async function activateFirebase(){
  });
  }catch(e){initDone=true;toast('Firebase : '+e.message);renderPairing()}
 }
+
+function hwAdjustCount(due,delta){
+ const item=db.homeworkDates.find(x=>x.due===due);if(!item)return;
+ item.count=Math.min(60,Math.max(0,Number(item.count)+delta));
+ if(item.count===0)db.homeworkDates=db.homeworkDates.filter(x=>x.due!==due);
+ hwPersist();
+}
+function hwAdjustPick(due,delta){
+ const max=hwAvailable(due);
+ const next=Math.max(0,Math.min(max,Number(homeworkDraft.items[due]||0)+delta));
+ if(delta>0&&hwSum(hwSelection())>=20){toast('20 devoirs maximum par bloc');return;}
+ homeworkDraft.items[due]=next;hwRefreshDraft();render();
+}
+function hwAdjustEstimate(delta){
+ homeworkDraft.estimate=Math.max(5,Math.min(240,Number(homeworkDraft.estimate)+delta));
+ homeworkDraft.manualEstimate=true;render();
+}
+async function hwCreateAndStart(){
+ if(db.runs.some(r=>r.status==='running'&&r.day===dayNow()))return toast('Termine d’abord ta mission en cours.');
+ const items=hwSelection(),count=hwSum(items);
+ if(!count)return toast('Choisis au moins un devoir.');
+ if(count>20)return toast('Maximum 20 devoirs dans un bloc.');
+ const estimate=Number($('#hw-duration')?.value||homeworkDraft.estimate);
+ if(!Number.isInteger(estimate)||estimate<5||estimate>240)return toast('Choisis une durée entre 5 et 240 minutes.');
+ for(const x of items){if(x.count>hwAvailable(x.due))return toast('Le nombre de devoirs a changé : vérifie ton bloc.');}
+ const original=data.config.tasks.find(t=>t.id==='homework');
+ const block={id:'hb-'+rand(),day:dayNow(),time:localTime(),estimate,items,validation:original?.validation==='parent'?'parent':'self'};
+ db.homeworkBlocks.push(block);saveDemo();data={...db};
+ homeworkDraft={items:{},estimate:20,manualEstimate:false};activeDay=dayNow();tab='today';
+ await startTask(block.id);
+}
+
 const actions={
  'tab':(_,el)=>changeTab(el.dataset.id),
  'day-prev':()=>{activeDay=futureDate(activeDay,-1);render()},
@@ -449,6 +481,14 @@ const actions={
  'add-homework':()=>{tab='homework';render()},
  'show-homework':()=>{tab='homework';render();window.scrollTo(0,0)},
  'homework-to-mission':()=>{tab='today';activeDay=dayNow();render()},
+ 'hw-count-minus':(_,el)=>hwAdjustCount(el.dataset.due,-1),
+ 'hw-count-plus':(_,el)=>hwAdjustCount(el.dataset.due,1),
+ 'hw-edit-count':(_,el)=>modalHomeworkCount(el.dataset.due),
+ 'hw-pick-minus':(_,el)=>hwAdjustPick(el.dataset.due,-1),
+ 'hw-pick-plus':(_,el)=>hwAdjustPick(el.dataset.due,1),
+ 'hw-estimate-minus':()=>hwAdjustEstimate(-5),
+ 'hw-estimate-plus':()=>hwAdjustEstimate(5),
+ 'hw-start':()=>hwCreateAndStart(),
  'replan':()=>replan(),
  'apply-plan':async()=>{try{const plan=window.__suggestedMovePlan||{};await call('/plan/set','POST',{day:activeDay,plan});await refresh(true);toast('📅 Plan de rattrapage enregistré')}catch(e){toast(e.message)}},
  'edit-task':(_,el)=>taskModal(el.dataset.id),
@@ -497,7 +537,7 @@ async function restoreBackup(file){
   const x=JSON.parse(await file.text()),d=x?.data;
   if(!d||!d.config||!Array.isArray(d.config.tasks)||!Array.isArray(d.config.rewards)||!Array.isArray(d.runs)||!Array.isArray(d.requests)||!d.wallet||!Array.isArray(d.homework)||!Array.isArray(d.plans))throw Error('Fichier NEXT MOVE non reconnu');
   if(!confirm('Restaurer cette sauvegarde remplacera TOUTES les données actuelles de NEXT MOVE sur ce téléphone. Continuer ?'))return;
-  db={config:d.config,runs:d.runs,ledger:Array.isArray(d.ledger)?d.ledger:[],wallet:d.wallet,requests:d.requests,homework:d.homework,plans:d.plans,role:'child'};
+  db={config:d.config,runs:d.runs,ledger:Array.isArray(d.ledger)?d.ledger:[],wallet:d.wallet,requests:d.requests,homework:d.homework,plans:d.plans,homeworkDates:Array.isArray(d.homeworkDates)?d.homeworkDates:[],homeworkBlocks:Array.isArray(d.homeworkBlocks)?d.homeworkBlocks:[],role:'child'};
   saveDemo();data={...db};role='child';pinUnlocked=false;tab='today';render();toast('✅ Sauvegarde restaurée.');
  }catch(e){toast('Import impossible : '+e.message)}
 }
@@ -523,7 +563,35 @@ function clockTick(){const el=$('#timer-num');if(!el)return;const taskId=el.data
  const remaining=t.minutes*60-Math.floor((Date.now()-r.started_at)/1000);el.textContent=(remaining<0?'+':'')+pretty(remaining);el.classList.toggle('overtime',remaining<0);
  const cap=$('#timer-caption');if(cap)cap.textContent=remaining<0?'DÉPASSEMENT · MISSION TOUJOURS ACTIVE':'TEMPS RESTANT';const progress=$('#timer-progress');if(progress)progress.style.width=Math.min(100,Math.max(0,100*(1-remaining/(t.minutes*60))))+'%';}
 async function onForm(event){const form=event.target;if(!form.id)return;event.preventDefault();const f=new FormData(form),get=name=>String(f.get(name)||'').trim();try{
- if(form.id==='category-form'){const c=cloneConfig(),name=get('categoryName');if(!name)throw Error('Nom manquant');if(!Array.isArray(c.categories))c.categories=[...CATEGORY];const idx=form.dataset.id;if(idx===''){if(c.categories.length>=20)throw Error('Maximum 20 catégories');c.categories.push(name)}else c.categories[Number(idx)]=name;closeModal();await updateConfig(c)}
+ if(form.id==='hw-add-date'){
+  const due=get('due'),count=Number(get('count'));
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(due)||!Number.isFinite(Date.parse(due+'T12:00:00Z')))throw Error('Choisis une date valide');
+  if(!Number.isInteger(count)||count<1||count>60)throw Error('Indique entre 1 et 60 devoirs');
+  const old=db.homeworkDates.find(x=>x.due===due);if(old)old.count=count;else db.homeworkDates.push({due,count});
+  hwPersist();toast('Devoirs enregistrés');
+ }
+ else if(form.id==='hw-set-count'){
+  const due=form.dataset.due,count=Number(get('count'));
+  if(!Number.isInteger(count)||count<0||count>60)throw Error('Nombre invalide');
+  const old=db.homeworkDates.find(x=>x.due===due);if(!old)throw Error('Date introuvable');
+  if(count===0)db.homeworkDates=db.homeworkDates.filter(x=>x.due!==due);else old.count=count;
+  closeModal();hwPersist();
+ }
+ else if(form.id==='hw-finish'){
+  const b=(db.homeworkBlocks||[]).find(x=>x.id===form.dataset.id);
+  if(!b)throw Error('Bloc introuvable');
+  const actual=b.items.map(x=>{
+   const count=Number(get('done-'+x.due));
+   if(!Number.isInteger(count)||count<0||count>x.count)throw Error('Vérifie le nombre terminé');
+   return {due:x.due,count};
+  });
+  if(!hwSum(actual))throw Error('Indique au moins un devoir terminé');
+  const result=await call('/run/finish','POST',{taskId:b.id,day:b.day,actual});
+  closeModal();await refresh(true);homeworkDraft.manualEstimate=false;
+  if(result.status==='pending_parent')toast('Bloc terminé · en attente de validation');
+  else celebration('Bloc validé · +'+result.points.xp+' XP !');
+ }
+ else if(form.id==='category-form'){const c=cloneConfig(),name=get('categoryName');if(!name)throw Error('Nom manquant');if(!Array.isArray(c.categories))c.categories=[...CATEGORY];const idx=form.dataset.id;if(idx===''){if(c.categories.length>=20)throw Error('Maximum 20 catégories');c.categories.push(name)}else c.categories[Number(idx)]=name;closeModal();await updateConfig(c)}
  else if(form.id==='task-form'){const c=cloneConfig(),identifier=form.dataset.id||rand(),old=c.tasks.find(x=>x.id===identifier)||{};
   const t={...old,id:identifier,title:get('title'),category:Number(get('category')),time:get('time'),minutes:Number(get('minutes')),priority:Number(get('priority')),validation:get('validation'),carry:get('carry'),days:f.getAll('days').map(Number),modes:f.getAll('modes'),steps:get('steps').split('\n').map(x=>x.trim()).filter(Boolean),enabled:f.has('enabled'),notify:f.has('notify'),locked:f.has('locked'),deadline:get('deadline'),xpBase:Number(get('xpBase')),xpSpeed:Number(get('xpSpeed')),xpInitiative:Number(get('xpInitiative')),coinsBase:Number(get('coinsBase')),coinsSpeed:Number(get('coinsSpeed')),coinsInitiative:Number(get('coinsInitiative'))};
   if(!t.title||!t.days.length||!t.modes.length)throw Error('Nom, jours et périodes obligatoires');c.tasks=c.tasks.filter(x=>x.id!==identifier);c.tasks.push(t);closeModal();await updateConfig(c)}
@@ -545,7 +613,7 @@ async function bootstrap(){
   event.preventDefault();const action=actions[target.dataset.action];if(action)try{await action(event,target)}catch(e){toast('Erreur : '+e.message)}
  });
  document.addEventListener('submit',onForm);
- document.addEventListener('change',async e=>{if(e.target.id==='backup-import')await restoreBackup(e.target.files?.[0]);});
+ document.addEventListener('change',async e=>{if(e.target.id==='backup-import')await restoreBackup(e.target.files?.[0]);if(e.target.id==='hw-duration'){const x=Number(e.target.value);if(Number.isInteger(x)&&x>=5&&x<=240){homeworkDraft.estimate=x;homeworkDraft.manualEstimate=true;render();}}});
  setInterval(clockTick,1000);
  setInterval(checkLocalChallenges,15000);
  setInterval(async()=>{if(connected&&navigator.onLine&&initDone&&data.paired){await refresh(true);storeCache()}},30000);

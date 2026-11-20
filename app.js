@@ -741,10 +741,8 @@ function modalReset(){
    <button class="btn danger block" type="submit">CONFIRMER L’EFFACEMENT</button>
   </form>`);
 }
-async function performReset(mode,pin,phrase){
- if(role!=='parent'||!pinUnlocked||!['progress','all'].includes(mode))throw Error('Accès parent requis');
- if(phrase!=='EFFACER'||!(/^\d{4}$/).test(pin)||await hashPin(pin)!==localStorage.getItem(pinKey))
-  throw Error('Confirmation ou code PIN incorrect');
+function resetState(mode){
+ if(!['progress','all'].includes(mode))throw Error('Mode de remise à zéro invalide');
  const config=mode==='all'?{...defaultConfig(false),tasks:[]}:JSON.parse(JSON.stringify(db.config));
  db={config,runs:[],ledger:[],wallet:{xp:0,coins:0},requests:[],homework:[],homeworkDates:[],homeworkBlocks:[],plans:[],claimedLevels:[1],role:'child'};
  saveDemo();
@@ -754,10 +752,16 @@ async function performReset(mode,pin,phrase){
   if(key&&key.startsWith('nm_notice_'))localStorage.removeItem(key);
  }
  data={...db};homeworkDraft={items:{},estimate:20,manualEstimate:false};
+ return db;
+}
+async function performReset(mode,pin,phrase){
+ if(role!=='parent'||!pinUnlocked||!['progress','all'].includes(mode))throw Error('Accès parent requis');
+ if(phrase!=='EFFACER'||!(/^\d{4}$/).test(pin)||await hashPin(pin)!==localStorage.getItem(pinKey))
+  throw Error('Confirmation ou code PIN incorrect');
+ resetState(mode);
  role='child';pinUnlocked=false;activeDay=dayNow();tab='today';
  closeModal();render();toast('NEXT MOVE a été réinitialisé');
 }
-
 function penaltyModal(){const misses=tasksFor(dayNow()).filter(t=>!runFor(t.id,dayNow()));openModal(`<h2>🪙 Pénalité sur décision parentale</h2><p class="helper">Aucune perte de XP ni de trophées. Retrait maximal de 20 pièces, uniquement après ton accord.</p><form id="penalty-form">${selectField('Mission concernée','taskId',(misses.length?misses:tasksFor(dayNow())).map(t=>[t.id,t.title]),misses[0]?.id||'')}${field('Date','day','date',dayNow(),'required')}${field('Pièces à retirer','coins','number',3,'min="1" max="20" required')}<div class="form-actions"><button type="button" class="btn" data-action="close-modal">Annuler</button><button class="btn danger">Confirmer la pénalité</button></div></form>`)}
 async function restoreBackup(file){
  if(!file||role!=='parent'||!pinUnlocked)return toast('Accès parent requis');

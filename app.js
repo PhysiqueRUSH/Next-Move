@@ -77,14 +77,30 @@ const taskCaps=t=>({xp:rewardCap(t?.xpMax,Math.min(150,Number(t?.xpBase??10)+Num
 function homeworkCaps(){return {xp:rewardCap(data.config.homeworkXpMax,30),coins:rewardCap(data.config.homeworkCoinsMax,10)};}
 function speedFactor(seconds,goalMinutes){const goal=Math.max(60,Number(goalMinutes)*60||60),duration=Math.max(0,Number(seconds)||0);return goal/(goal+duration);}
 function goalReached(seconds,goalMinutes){return Number(seconds)<=Math.max(1,Number(goalMinutes))*60;}
+/* Barème atteignable: moitié de la durée suggérée = seuil de vitesse maximale.
+   L'objectif choisi par Mahé apporte un bonus, la ponctualité un autre.
+   Les caps parentaux sont toujours respectés. */
+function fullSpeedSeconds(t){
+ const reference=Math.max(60,Math.round((Number(t?.minutes)||10)*60));
+ return Math.max(30,Math.round(reference/2));
+}
+function taskSpeedProgress(t,elapsedSeconds){
+ const reference=Math.max(60,Math.round((Number(t?.minutes)||10)*60));
+ const threshold=fullSpeedSeconds(t);
+ return clamp((reference-Math.max(0,Number(elapsedSeconds)||0))/(reference-threshold),0,1);
+}
+function taskPunctual(t,late){
+ return scheduleMode(t)==='flexible'||Number(late)<60;
+}
+function attainableSeconds(t,goalMinutes){
+ return Math.max(1,Math.min(fullSpeedSeconds(t),Math.round(Math.max(1,Number(goalMinutes)||1)*60)));
+}
 function taskReward(t,goalMinutes,maxMinutes,seconds,late,overrides){
  const cap=overrides||taskCaps(t),max=Math.max(1,Number(maxMinutes)||taskMaximum(t)),goal=Math.max(1,Number(goalMinutes)||Number(t.minutes)||10);
- const hasLimit=taskHasLimit(t);
- if(hasLimit&&seconds>max*60)return {xp:0,coins:0,overrun:true,speed:0,goalReached:false};
- const speed=speedFactor(seconds,goal),met=goalReached(seconds,goal);
- const punctual=scheduleMode(t)==='flexible'||Number(late)===0?1:0;
- const score=clamp(.22+.57*speed+(met?.09:0)+.12*punctual,0,1);
- return {xp:Math.round(cap.xp*score),coins:Math.round(cap.coins*score),overrun:false,speed,goalReached:met};
+ if(taskHasLimit(t)&&seconds>max*60)return {xp:0,coins:0,overrun:true,speed:0,goalReached:false,punctual:taskPunctual(t,late)};
+ const speed=taskSpeedProgress(t,seconds),met=goalReached(seconds,goal),punctual=taskPunctual(t,late);
+ const score=clamp(.25+.55*speed+(met?.10:0)+(punctual?.10:0),0,1);
+ return {xp:Math.min(cap.xp,Math.round(cap.xp*score)),coins:Math.min(cap.coins,Math.round(cap.coins*score)),overrun:false,speed,goalReached:met,punctual};
 }
 function levelCoins(n){return clamp(5+3*n,8,75);}
 function applyLevelRewards(){
@@ -614,17 +630,30 @@ async function changeTab(which){if(role==='parent')adminTab=which;else {tab=whic
 function taskProjectedLate(t){
  return scheduleMode(t)==='fixed'&&minutes(localTime())>minutes(t.time)?60:0;
 }
+function rewardString(points){return points.xp+' XP · '+points.coins+' 🪙';}
+function secondsLabel(seconds){
+ const min=Math.floor(seconds/60),sec=seconds%60;
+ return sec?min+' min '+sec+' s':min+' min';
+}
 function goalPreview(t,goal){
- const max=taskMaximum(t),limit=taskHasLimit(t),late=taskProjectedLate(t);
- const caps=taskCaps(t);
- const scenario=(seconds)=>taskReward(t,goal,max,seconds,late);
- const onTarget=scenario(goal*60),quick=scenario(goal*30),slow=scenario(goal*120);
- return `<div class="nm-scenario-list" aria-live="polite">
-  <div class="nm-scenario-row"><span>🎯 Dans ton objectif (${goal} min)</span><strong>${onTarget.xp} XP · ${onTarget.coins} 🪙</strong></div>
-  <div class="nm-scenario-row"><span>⚡ Deux fois plus vite</span><strong>${quick.xp} XP · ${quick.coins} 🪙</strong></div>
-  <div class="nm-scenario-row"><span>🐢 Deux fois plus lentement</span><strong>${slow.xp} XP · ${slow.coins} 🪙</strong></div>
+ const limit=taskHasLimit(t),late=taskProjectedLate(t),fixed=scheduleMode(t)==='fixed';
+ const cap=taskCaps(t),max=taskMaximum(t),finishBy=attainableSeconds(t,goal);
+ const scenario=seconds=>taskReward(t,goal,max,seconds,late);
+ const onTarget=scenario(goal*60),quick=scenario(Math.max(1,Math.round(goal*30))),slow=scenario(goal*120);
+ const best=scenario(finishBy);
+ const perfect=late<60||!fixed;
+ return `<div class="nm-winning-rule">
+  <div class="nm-winning-label">${perfect?'🏆 COMMENT GAGNER LE MAX':'🏆 TON MAXIMUM AUJOURD’HUI'}</div>
+  <div class="nm-winning-points">${rewardString(best)}</div>
+  <div class="nm-winning-how">✅ Termine en <strong>${secondsLabel(finishBy)}</strong> ou moins.</div>
+  ${fixed?(perfect?'<div class="nm-winning-how">✅ Démarre sans retard pour garder le bonus de ponctualité.</div>':`<div class="nm-winning-note">⏰ Heure prévue : ${escape(t.time)}. Le bonus ponctualité est déjà perdu aujourd’hui. Les ${cap.xp} XP et ${cap.coins} pièces ne sont accessibles que lors d'un démarrage à l'heure.</div>`):''}
  </div>
- <p class="nm-cap-note">Maximum pour cette mission : ${caps.xp} XP et ${caps.coins} pièces. ${limit?'Au-delà de '+max+' min : aucun gain.':'Aucune limite de temps.'}</p>`;
+ <div class="nm-scenario-list" aria-live="polite">
+  <div class="nm-scenario-row"><span>🎯 En ${secondsLabel(goal*60)}</span><strong>${rewardString(onTarget)}</strong></div>
+  <div class="nm-scenario-row"><span>⚡ En ${secondsLabel(Math.max(1,Math.round(goal*30)))}</span><strong>${rewardString(quick)}</strong></div>
+  <div class="nm-scenario-row"><span>🐢 En ${secondsLabel(goal*120)}</span><strong>${rewardString(slow)}</strong></div>
+ </div>
+ <p class="nm-cap-note">${limit?`Limite parentale : ${max} min. Passé ce temps : aucun gain.`:'Aucune limite de temps.'}</p>`;
 }
 function refreshGoalPreview(){
  const input=$('#goal-minutes'),box=$('#goal-preview');

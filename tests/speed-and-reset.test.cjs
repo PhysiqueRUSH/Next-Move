@@ -72,6 +72,11 @@ async function main(){
  assert.equal(finish.status,'pending_parent');
  assert.equal(t.db.wallet.xp,0);
  await assert.rejects(t.demoCall('/run/approve','POST',{id:created.run.id,approve:true}),/code PIN/i);
+ assert.equal(created.run.status,'pending_parent');
+ const elapsedBefore=created.run.elapsed_s,stoppedAt=created.run.finished_at;
+ await assert.rejects(t.demoCall('/run/approve','POST',{id:created.run.id,approve:true,pin:'1111'}),/incorrect/i);
+ assert.equal(created.run.elapsed_s,elapsedBefore,'Timer duration is frozen during approval');
+ assert.equal(created.run.finished_at,stoppedAt,'The stop timestamp stays fixed');
  assert.equal(t.db.wallet.xp,0);
  const approved=await t.demoCall('/run/approve','POST',{id:created.run.id,approve:true,pin});
  assert.equal(approved.status,'complete');

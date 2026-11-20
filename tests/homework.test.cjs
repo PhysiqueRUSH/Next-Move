@@ -2,6 +2,9 @@
 const fs=require('node:fs');
 const vm=require('node:vm');
 const assert=require('node:assert/strict');
+const nodeCrypto=require('node:crypto');
+const pin='1234';
+const pinHash=nodeCrypto.createHash('sha256').update('NEXT MOVE LOCAL PIN v1'+pin).digest('hex');
 
 let source=fs.readFileSync('app.js','utf8');
 const closing=/bootstrap\(\);\s*\}\)\(\);\s*$/;
@@ -9,11 +12,12 @@ assert.match(source,closing,'Application bootstrap marker should exist');
 source=source.replace(closing, "globalThis.__test={db,dayNow,futureDate,hwReward,hwSum,hwAvailable,hwApplyCompleted,tasksFor,runFor,demoCall,setData:()=>{data={...db}}};\n})();");
 const store=new Map();
 let uid=0;
+store.set('nextmove_parent_pin_v1',pinHash);
 const context={
  console,Intl,Date,Math,JSON,Array,Set,Map,Number,String,Promise,
  localStorage:{getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,v),removeItem:k=>store.delete(k)},
  navigator:{onLine:true},
- crypto:{randomUUID:()=>String(++uid).padStart(8,'0')},
+ crypto:{randomUUID:()=>String(++uid).padStart(8,'0'),subtle:nodeCrypto.webcrypto.subtle},TextEncoder,
 };
 vm.createContext(context);
 vm.runInContext(source,context,{filename:'app.js'});
@@ -52,7 +56,7 @@ async function test(){
  assert.equal(t.db.homeworkDates[0].count,4,'Pending validation must not deduct homework yet');
  assert.equal(t.hwAvailable(due),2,'Pending validation reserves selected homework');
  const pendingRun=t.runFor(approval.id,today);
- await t.demoCall('/run/approve','POST',{id:pendingRun.id,approve:true});t.setData();
+ await t.demoCall('/run/approve','POST',{id:pendingRun.id,approve:true,pin});t.setData();
  assert.equal(t.db.homeworkDates[0].count,2,'Approval deducts the confirmed volume');
  assert.equal(t.hwAvailable(due),2);
  assert.ok(t.db.wallet.xp>done.points.xp,'Approved blocks award points');

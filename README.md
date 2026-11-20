@@ -101,7 +101,7 @@ Le bouton **Effacer et recommencer**, dans les réglages parentaux, demande le P
 
 L'application reste **100 % locale**, installable depuis GitHub Pages, sans compte Google ni Firebase, et sans synchronisation entre appareils.
 
-## NEXT MOVE 4.2 — Validation parentale et conversion XP
+## NEXT MOVE 4.3 — Validation parentale et boutique simplifiée
 
 ### Arrêt immédiat du chrono et validation parentale
 
@@ -113,15 +113,18 @@ L'application reste **100 % locale**, installable depuis GitHub Pages, sans comp
 - Pour les missions sans limite, l'ancienne option d'autovalidation ou de validation parentale reste configurable. Les blocs de devoirs restent sans plafond de temps, avec validation parentale facultative.
 - Les exemples de gains « deux fois plus lentement » ont été retirés des écrans de préparation : Mahé voit uniquement son objectif et, si elle est différente, la récompense liée à une réalisation plus rapide.
 
-### Convertir ses XP en pièces dans Cadeaux
+### Deux récompenses distinctes, sans échange
 
-- Dans **Paramètres parentaux > Réglages > Échanger des XP contre des pièces**, le parent fixe le nombre d'XP nécessaires pour obtenir **une pièce** (par défaut : **20 XP = 1 pièce**, entièrement modifiable).
-- Dans **Cadeaux**, Mahé indique le nombre de pièces à obtenir. NEXT MOVE affiche le coût puis réalise l'échange s'il dispose d'assez d'XP disponibles. Chaque échange est enregistré et ne peut pas être effectué deux fois avec les mêmes XP.
-- Les **XP disponibles** pour la conversion sont séparés des **XP de progression**. Convertir ses XP ou subir un malus ne fait pas perdre les niveaux, médailles ou titres déjà débloqués.
-- À l'installation de cette mise à jour, les XP de progression déjà acquis deviennent aussi le solde initial d'XP disponibles. La sauvegarde JSON conserve ce nouveau solde ainsi que l'historique des conversions.
+Les **XP** servent à progresser dans les niveaux et à débloquer les titres et trophées. Les **pièces** sont gagnées directement par la réalisation des missions et permettent de demander des cadeaux. **Aucune conversion d'XP en pièces n'est possible**, ni depuis la boutique ni depuis les paramètres parentaux. Les gains acquis précédemment restent conservés.
 
 ### Sécurité et limites
 
 Le PIN local verrouille les validations **dans l'interface**, mais une PWA hébergée sur GitHub Pages ne peut pas empêcher un utilisateur techniquement compétent de modifier le stockage de son propre appareil. Le contrôle parental reste une **vérification réelle de la tâche**, et le PIN n'est **pas une authentification serveur inviolable**. Pour de véritables protections anti-manipulation, une synchronisation et des règles de validation côté serveur seront nécessaires.
 
 En mode local, la version installée sur Android conserve les données dans le stockage du navigateur et peut être utilisée sans Firebase.
+
+## NEXT MOVE 4.3 — Suppression de la conversion XP → pièces
+
+- L'onglet **Cadeaux** présente seulement les pièces déjà gagnées, les cadeaux disponibles et les demandes en cours.
+- Le taux de conversion a été retiré des paramètres parentaux ; l'action d'échange est désactivée dans le moteur de l'application.
+- Les XP et pièces déjà gagnés ne sont pas modifiés, les niveaux et trophées sont conservés. Les anciennes conversions déjà effectuées ne sont pas annulées, mais aucun nouvel échange n'est possible.

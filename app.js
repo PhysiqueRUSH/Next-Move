@@ -162,7 +162,7 @@ function modeFor(s){const periods=data.config.periods||[];return periods.find(x=
 function tasksFor(s){const m=modeFor(s),d=dayOf(s),ex=(data.config.exceptions||[]).filter(x=>x.day===s);
  const plan=JSON.parse((data.plans||[]).find(p=>p.day===s)?.plan_json||'{}');
  const hasHomeworkBlock=(data.homeworkBlocks||[]).some(b=>b.day===s);
- const ordinary=(data.config.tasks||[]).filter(t=>t.enabled!==false&&(t.days||[]).includes(d)&&(t.modes||[]).includes(m)&&!ex.some(x=>x.hideTaskId===t.id)&&!(t.id==='homework'&&hasHomeworkBlock)).map(t=>{const change=ex.find(x=>x.taskId===t.id),alter=change?.changes||{},time=!t.locked&&t.priority!==1&&plan[t.id]?plan[t.id]:(alter.time||t.time);return {...t,...alter,time,...(t.id==='homework'?{title:'Blocs de devoirs',homeworkLauncher:true}: {})}});
+ const ordinary=(data.config.tasks||[]).filter(t=>t.enabled!==false&&(t.days||[]).includes(d)&&(t.modes||[]).includes(m)&&!ex.some(x=>x.hideTaskId===t.id)&&!(t.id==='homework'&&hasHomeworkBlock)).map(t=>{const change=ex.find(x=>x.taskId===t.id),alter=change?.changes||{},time=scheduleMode(t)==='fixed'?(alter.time||t.time):(alter.time||t.time);return {...t,...alter,time,...(t.id==='homework'?{title:'Blocs de devoirs',homeworkLauncher:true}: {})}});
  const leftovers=[];
  for(const t of (data.config.tasks||[]).filter(t=>t.enabled!==false&&['carry','keep'].includes(t.carry)&&!ordinary.some(x=>x.id===t.id))){
   const limit=t.carry==='keep'?7:1;
@@ -175,11 +175,27 @@ function tasksFor(s){const m=modeFor(s),d=dayOf(s),ex=(data.config.exceptions||[
  }
  const homework=(data.homework||[]).filter(h=>h.day===s).map(h=>({id:h.id,title:h.subject,category:2,time:'17:30',minutes:h.estimate,priority:2,validation:'parent',homework:true,description:h.details}));
  const blocks=(data.homeworkBlocks||[]).filter(b=>b.day===s).map(hwBlockTask);
- return [...ordinary,...leftovers.filter(x=>x.id!=='homework'),...homework,...blocks].sort((a,b)=>a.time.localeCompare(b.time)||a.priority-b.priority);
+ return [...ordinary,...leftovers.filter(x=>x.id!=='homework'),...homework,...blocks].sort((a,b)=>{
+ const fixA=scheduleMode(a)==='fixed',fixB=scheduleMode(b)==='fixed';
+ if(fixA!==fixB)return fixA?-1:1;
+ return (fixA?a.time.localeCompare(b.time):0)||a.priority-b.priority;
+});
 }
 const runFor=(taskId,day=activeDay)=>data.runs.find(r=>r.task_id===taskId&&r.day===day);
 const isDone=r=>r&&['complete','pending_parent','rejected'].includes(r.status);
-const getActive=(s=activeDay)=>{const tasks=tasksFor(s),running=tasks.find(t=>runFor(t.id,s)?.status==='running');if(running)return running;const pending=tasks.filter(t=>!runFor(t.id,s));if(!pending.length)return null;if(s!==dayNow())return pending[0];const now=minutes(localTime());const relevant=pending.filter(t=>minutes(t.time)>=now-90||t.carry==='keep'||t.homeworkLauncher);return relevant.find(t=>minutes(t.time)<=now)||relevant[0]||null;};
+const getActive=(day=activeDay)=>{
+ const tasks=tasksFor(day),running=tasks.find(t=>runFor(t.id,day)?.status==='running');
+ if(running)return running;
+ const pending=tasks.filter(t=>!runFor(t.id,day));
+ if(!pending.length)return null;
+ if(day!==dayNow())return pending[0];
+ const now=minutes(localTime());
+ const due=pending.filter(t=>scheduleMode(t)==='fixed'&&minutes(t.time)<=now);
+ if(due.length)return due[0];
+ const flexible=pending.filter(t=>scheduleMode(t)==='flexible');
+ if(flexible.length)return flexible[0];
+ return pending[0];
+};
 function walletBadge(){return `<span class="pill gold">🪙 ${Number(data.wallet.coins)||0}</span><span class="pill cyan">⚡ ${Number(data.wallet.xp)||0} XP</span>`}
 function parentGuard(){return role==='parent'&&!pinUnlocked}
 function render(){if(!initDone)return;
@@ -310,7 +326,7 @@ function renderMissionList(list,day){
   const done=['complete','pending_parent'].includes(status);
   const label=status==='complete'?'✅':status==='pending_parent'?'⏳':status==='running'?'⏱️':status==='rejected'?'↻':'';
   const canStart=day===dayNow()&&!r&&!someoneRunning;
-  return `<div class="mission ${done?'completed':''}"><span class="time">${escape(t.time)}</span><div class="info"><strong>${escape(t.title)}</strong><p>${Number(t.minutes)||1} min${status==='running'?' · En cours':status==='pending_parent'?' · À valider':status==='complete'?' · Terminé':t.carriedFrom?' · À rattraper':''}</p></div>${canStart?`<button class="btn mini primary nm-list-action" data-action="start" data-id="${escape(t.id)}">▶</button>`:`<span class="state">${label||'○'}</span>`}</div>`;
+  return `<div class="mission ${done?'completed':''}"><span class="time">${scheduleMode(t)==='fixed'?escape(t.time):'⚡'}</span><div class="info"><strong>${escape(t.title)}</strong><p>${scheduleMode(t)==='fixed'?'Heure fixe':'À faire quand tu veux'} · ${taskHasLimit(t)?'Limite '+taskMaximum(t)+' min':'Sans limite'}${status='running'?' · En cours':status==='pending_parent'?' · À valider':status==='complete'?' · Terminé':t.carriedFrom?' · À rattraper':''}</p></div>${canStart?`<button class="btn mini primary nm-list-action" data-action="start" data-id="${escape(t.id)}">▶</button>`:`<span class="state">${label||'○'}</span>`}</div>`;
  }).join(''):'<div class="empty">Aucun défi ce jour-là.</div>'}</div>`;
 }
 function renderPlanning(){
@@ -622,11 +638,15 @@ async function finishTask(taskId){const run=runFor(taskId,activeDay);if(!run||ru
 }
 async function flushOffline(){if(!connected||!navigator.onLine)return;const queue=offlineRuns();if(!queue.length)return;let pending=[];for(const item of queue){try{await call('/run/offline','POST',item)}catch{pending.push(item)}}saveOfflineRuns(pending);if(pending.length!==queue.length)await refresh(true)}
 async function openPronote(){const url=data.config.pronoteUrl||cfg.pronoteUrl;if(url&&/^https:\/\//.test(url))window.open(url,'_blank','noopener,noreferrer');else toast('Adresse PRONOTE à configurer depuis l’espace parent.')}
-function replan(){const pending=tasksFor(activeDay).filter(t=>!isDone(runFor(t.id))),start=localTime();let cursor=minutes(start);const changes={};const display=pending.map(t=>{
-  const planned=minutes(t.time);
-  if(t.locked||t.priority===1){cursor=Math.max(cursor,planned)+t.minutes;return `${escape(t.title)} : horaire fixé à ${t.time}`}
-  cursor=Math.max(cursor,planned);const hh=String(Math.floor(cursor/60)%24).padStart(2,'0')+':'+String(cursor%60).padStart(2,'0');if((!t.deadline||hh<=t.deadline)&&hh!=='24:00')changes[t.id]=hh;cursor+=t.minutes;return `${escape(t.title)} : proposé à ${hh}`;
- });const el=$('#replan-result');if(el)el.innerHTML='<div class="divider"></div>'+display.map(s=>`<p class="small">• ${s}</p>`).join('')+'<p class="helper">Les contraintes parentales et les horaires fixes restent prioritaires.</p>'+((data.config.rankMode||1)>=2?'<button class="btn primary block" data-action="apply-plan">Appliquer ce planning</button>':'<p class="small muted">En mode Guidé, le parent conserve la décision de déplacement des horaires.</p>');window.__suggestedMovePlan=changes;
+function replan(){
+ const pending=tasksFor(activeDay).filter(t=>!isDone(runFor(t.id,activeDay)));
+ const fixed=pending.filter(t=>scheduleMode(t)==='fixed');
+ const flexible=pending.filter(t=>scheduleMode(t)==='flexible');
+ const el=$('#replan-result');if(!el)return;
+ el.innerHTML='<div class="divider"></div>'
+  +'<p class="small">🕒 Horaires fixes : '+fixed.map(t=>escape(t.title)+' ('+escape(t.time)+')').join(', ')+'</p>'
+  +'<p class="small">⚡ Missions libres : '+(flexible.map(t=>escape(t.title)).join(', ')||'Aucune')+'</p>'
+  +'<p class="helper">Les heures fixes ne sont jamais déplacées automatiquement. Mahé choisit quand réaliser ses missions libres.</p>';
 }
 async function requestNotifications(){if(!connected)return toast('Notifications distantes indisponibles en démonstration');
  if(!('Notification' in window)||!('serviceWorker' in navigator))return toast('Notifications non prises en charge');
@@ -819,7 +839,7 @@ function checkLocalChallenges(){
  });
  if(quiet)return;
  for(const t of tasksFor(day)){
-  if(!t.notify||runFor(t.id,day)||Math.abs(minute-minutes(t.time))>0)continue;
+  if(!t.notify||scheduleMode(t)!=='fixed'||runFor(t.id,day)||Math.abs(minute-minutes(t.time))>0)continue;
   const key='nm_local_notice_'+day+'_'+t.id;
   if(localStorage.getItem(key))continue;
   localStorage.setItem(key,'1');

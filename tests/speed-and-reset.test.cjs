@@ -5,7 +5,7 @@ const assert=require('node:assert/strict');
 let source=fs.readFileSync('app.js','utf8');
 const end=/bootstrap\(\);\s*\}\)\(\);\s*$/;
 assert.match(source,end);
-source=source.replace(end,"globalThis.__test={db,task,dayNow,dayOf,taskReward,hwReward,homeworkMaximum,taskMaximum,levelInfo,levelCoins,applyLevelRewards,runFor,demoCall,resetState,renderToday,renderProfile,renderAdminSettings,renderAdminStats,renderHomework,LEVEL_REWARDS,LEVEL_MILESTONES,setData:()=>{data={...db}},currentDb:()=>db};\n})();");
+source=source.replace(end,"globalThis.__test={db,task,dayNow,dayOf,taskReward,hwReward,homeworkCaps,taskMaximum,scheduleMode,taskHasLimit,goalPreview,levelInfo,levelCoins,applyLevelRewards,runFor,demoCall,resetState,renderToday,renderProfile,renderAdminSettings,renderAdminStats,renderHomework,LEVEL_REWARDS,LEVEL_MILESTONES,setData:()=>{data={...db}},currentDb:()=>db};\n})();");
 const storage=new Map();
 const localStorage={
  getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,String(v)),
@@ -31,14 +31,15 @@ async function main(){
  const hwFast=t.hwReward(items,60,180,t.dayNow(),90),hwSlow=t.hwReward(items,60,3000,t.dayNow(),90);
  assert.ok(hwFast.xp>hwSlow.xp,'Faster homework must earn more XP');
  assert.ok(hwFast.coins>hwSlow.coins,'Faster homework must earn more coins');
- assert.equal(t.hwReward(items,60,5401,t.dayNow(),90).xp,0,'Homework block above max: zero XP');
- assert.equal(t.hwReward(items,60,5401,t.dayNow(),90).coins,0,'Homework block above max: zero coins');
- assert.equal(t.homeworkMaximum(3),90,'Parent per-homework cap multiplies with volume');
+ assert.ok(t.hwReward(items,60,5401,t.dayNow()).xp>0,'Homework has no hard time cutoff');
+ assert.ok(t.hwReward(items,60,5401,t.dayNow()).coins>0,'Homework can still earn coins when slow');
+ assert.ok(t.hwReward(items,60,10,t.dayNow()).xp<=3*t.homeworkCaps().xp,'Per homework XP cap is respected');
+ assert.ok(t.hwReward(items,60,10,t.dayNow()).coins<=3*t.homeworkCaps().coins,'Per homework coin cap is respected');
 
  t.db.config.tasks.push(normal);
  t.setData();
  const day=t.dayNow();
- await assert.rejects(t.demoCall('/run/start','POST',{taskId:'speed-test',day,goalMinutes:16}),/limite parentale/);
+ await assert.rejects(t.demoCall('/run/start','POST',{taskId:'speed-test',day,goalMinutes:16}),/Objectif de temps invalide/);
  const created=await t.demoCall('/run/start','POST',{taskId:'speed-test',day,goalMinutes:10});
  assert.equal(created.run.goal_minutes,10);
  assert.equal(created.run.max_minutes,15);
@@ -49,6 +50,22 @@ async function main(){
  const finish=await t.demoCall('/run/finish','POST',{taskId:'speed-test',day});
  assert.equal(finish.status,'complete');
  assert.ok(finish.points.xp>0);
+
+ const free=t.task('free-test','Lecture libre',7,'18:00',12,[0,1,2,3,4,5,6],{modes:['school','weekend','vacation'],maxMinutes:5,hasTimeLimit:false,scheduleMode:'flexible',xpMax:22,coinsMax:8});
+ assert.equal(t.scheduleMode(free),'flexible');
+ assert.equal(t.taskHasLimit(free),false);
+ assert.ok(t.taskReward(free,30,5,6000,999).xp>0,'Unlimited tasks earn XP when slow');
+ assert.ok(t.taskReward(free,30,5,6000,999).coins>0,'Unlimited tasks earn coins when slow');
+ assert.ok(t.taskReward(free,30,5,1,0).xp<=22,'Task XP cannot exceed parent cap');
+ assert.ok(t.taskReward(free,30,5,1,0).coins<=8,'Task coins cannot exceed parent cap');
+ t.db.config.tasks.push(free);t.setData();
+ const freeRun=await t.demoCall('/run/start','POST',{taskId:'free-test',day,goalMinutes:30});
+ assert.equal(freeRun.run.max_minutes,null,'Unlimited task has no max time');
+ assert.equal(freeRun.run.planned_at,freeRun.run.started_at,'Free schedule has no start delay');
+ freeRun.run.started_at=Date.now()-7000*1000;
+ const freeFinish=await t.demoCall('/run/finish','POST',{taskId:'free-test',day});
+ assert.equal(freeFinish.penaltyPending,false,'Unlimited task must never be penalized');
+ assert.ok(freeFinish.points.xp>0,'Unlimited actual run still yields XP');
 
  const late=t.task('over-test','Dépassée',3,'12:00',2,[0,1,2,3,4,5,6],{modes:['school','weekend','vacation'],maxMinutes:2});
  t.db.config.tasks.push(late);
@@ -77,7 +94,8 @@ async function main(){
  assert.match(t.renderProfile(),/Récompenses de niveaux/);
  assert.match(t.renderHomework(),/Mon bloc/);
  assert.match(t.renderToday(),/mission|Rien de prévu|défis/i);
- assert.match(t.renderAdminSettings(),/Limites & récompenses/);
+ assert.match(t.renderAdminSettings(),/Gains maximum par devoir/);
+ assert.match(t.goalPreview(normal,10),/Dans ton objectif/);
  assert.match(t.renderAdminSettings(),/Effacer et recommencer/);
  assert.match(t.renderAdminStats(),/Dépassements à examiner/);
  const originalXp=t.db.wallet.xp;

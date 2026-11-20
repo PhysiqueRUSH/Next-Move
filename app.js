@@ -491,17 +491,45 @@ async function refresh(quiet=false){if(!initDone)return;try{const result=await c
  }if(!quiet)toast('Données actualisées');render()}catch(e){if(!quiet)toast(e.message);if(e.message==='NOT_PAIRED'){data.paired=false;role='child';render()}else if(connected){const local=localStorage.getItem('nm_state_cache');if(local){const cached=JSON.parse(local);data={...data,...cached};render()}}}}
 function storeCache(){if(connected){const safe={config:data.config,runs:data.runs,wallet:data.wallet,homework:data.homework,requests:data.requests,paired:data.paired};localStorage.setItem('nm_state_cache',JSON.stringify(safe))}}
 async function changeTab(which){if(role==='parent')adminTab=which;else {tab=which;if(which==='today')activeDay=dayNow();}render();window.scrollTo(0,0)}
-async function startTask(taskId){const day=activeDay;if(day!==dayNow())return toast('Lance les missions du jour uniquement.');
- if(tasksFor(day).find(t=>t.id===taskId)?.homeworkLauncher){tab='homework';render();return;}
+
+function modalStartTask(taskId){
+ const t=tasksFor(activeDay).find(x=>x.id===taskId);
+ if(!t)return toast('Mission introuvable');
+ const max=taskMaximum(t),suggested=Math.min(max,Math.max(1,Number(t.minutes)||10));
+ openModal(`<h2>⏱️ Ton défi chrono</h2>
+  <p class="nm-goal-task">${escape(t.title)}</p>
+  <p class="small muted">Combien de minutes te donnes-tu ?</p>
+  <form id="goal-form" data-id="${escape(taskId)}">
+   <div class="nm-goal-input"><button type="button" class="hw-compact-btn" data-action="goal-minus">−</button>
+    <input id="goal-minutes" name="goal" type="number" min="1" max="${max}" value="${suggested}" inputmode="numeric" required aria-label="Mon objectif en minutes">
+    <button type="button" class="hw-compact-btn" data-action="goal-plus">+</button>
+   </div>
+   <p class="nm-goal-maximum">Limite parent : ${max} min</p>
+   <div class="nm-goal-tip">⚡ Plus tu termines vite, plus tu gagnes de XP et de pièces.</div>
+   <button type="submit" class="btn primary block nm-one-action">▶ JE LANCE LE CHRONO</button>
+  </form>`);
+}
+async function startTask(taskId,goalMinutes){
+ const day=activeDay;if(day!==dayNow())return toast('Lance les missions du jour uniquement.');
+ const task=tasksFor(day).find(t=>t.id===taskId);
+ if(!task)return toast('Mission introuvable');
+ if(task.homeworkLauncher){tab='homework';render();return;}
  const old=runFor(taskId,day);if(old)return toast('Cette mission est déjà commencée.');
- try{const r=await call('/run/start','POST',{taskId,day});if(!data.runs.some(x=>x.id===r.run.id))data.runs.unshift(r.run);render();beep(700,.1);toast('⚡ Chrono lancé, c’est parti !')}
+ if(goalMinutes===undefined){modalStartTask(taskId);return;}
+ const max=taskMaximum(task);
+ if(!Number.isInteger(goalMinutes)||goalMinutes<1||goalMinutes>max)return toast('Objectif hors limites.');
+ try{const r=await call('/run/start','POST',{taskId,day,goalMinutes});if(!data.runs.some(x=>x.id===r.run.id))data.runs.unshift(r.run);render();beep(700,.1);toast('⚡ Chrono lancé, c’est parti !')}
+
  catch(e){if(!navigator.onLine){const obj={id:'offline-'+rand(),task_id:taskId,day,started_at:Date.now(),planned_at:Date.now(),status:'running',offline:true};data.runs.unshift(obj);localStorage.setItem('nm_offline_running',JSON.stringify(obj));render();toast('Hors ligne · chrono local actif. Validation parentale après synchronisation.')}else toast('Impossible de démarrer : '+e.message)}
 }
 async function finishTask(taskId){const run=runFor(taskId,activeDay);if(!run||run.status!=='running')return;
  if(tasksFor(activeDay).find(t=>t.id===taskId)?.homeworkBlock){modalHomeworkFinish(taskId);return;}
  if(!confirm('Confirmer que la mission est réellement terminée ?'))return;
  if(run.offline){run.finished_at=nowMs();run.elapsed_s=Math.floor((run.finished_at-run.started_at)/1000);run.status='pending_parent';const q=offlineRuns();q.push({taskId,day:activeDay,startedAt:run.started_at,finishedAt:run.finished_at});saveOfflineRuns(q);localStorage.removeItem('nm_offline_running');render();celebration('Défi terminé hors ligne : en attente de vérification');return;}
- try{const result=await call('/run/finish','POST',{taskId,day:activeDay});await refresh(true);if(result.status==='pending_parent')toast('⏳ Mission terminée, validation parentale en attente');else celebration('Mission terminée ! +'+result.points.xp+' XP')}catch(e){
+ try{const result=await call('/run/finish','POST',{taskId,day:activeDay});await refresh(true);
+  if(result.status==='pending_parent')toast('⏳ Mission terminée, validation parentale en attente');
+  else if(result.overrun)toast(result.penaltyPending?'⏳ Temps dépassé · décision du parent attendue':'⌛ Temps dépassé · aucun gain');
+  else celebration('Mission terminée ! +'+result.points.xp+' XP')}catch(e){
   if(!navigator.onLine||e instanceof TypeError){const end=Date.now(),q=offlineRuns();q.push({taskId,day:activeDay,startedAt:run.started_at,finishedAt:end});saveOfflineRuns(q);run.status='pending_parent';run.finished_at=end;render();toast('Hors ligne : résultat enregistré. Validation parentale au retour du réseau.');}
   else toast('Erreur : '+e.message)
  }
@@ -577,6 +605,8 @@ const actions={
  'day-prev':()=>{activeDay=futureDate(activeDay,-1);render()},
  'day-next':()=>{activeDay=futureDate(activeDay,1);render()},
  'start':async(_,el)=>{tab='today';activeDay=dayNow();await startTask(el.dataset.id);window.scrollTo(0,0)},
+ 'goal-minus':()=>{const input=$('#goal-minutes');if(input)input.value=Math.max(Number(input.min)||1,(Number(input.value)||1)-1)},
+ 'goal-plus':()=>{const input=$('#goal-minutes');if(input)input.value=Math.min(Number(input.max)||240,(Number(input.value)||1)+1)},
  'finish':(_,el)=>finishTask(el.dataset.id),
  'toggle-sound':()=>{localStorage.setItem('nm_mute',localStorage.getItem('nm_mute')==='yes'?'no':'yes');render()},
  'parent-entry':async()=>{if(connected){await googleLogin()}else{role='parent';pinUnlocked=false;render()}},
@@ -670,7 +700,14 @@ function clockTick(){const el=$('#timer-num');if(!el)return;const taskId=el.data
  const remaining=t.minutes*60-Math.floor((Date.now()-r.started_at)/1000);el.textContent=(remaining<0?'+':'')+pretty(remaining);el.classList.toggle('overtime',remaining<0);
  const cap=$('#timer-caption');if(cap)cap.textContent=remaining<0?'DÉPASSEMENT · MISSION TOUJOURS ACTIVE':'TEMPS RESTANT';const progress=$('#timer-progress');if(progress)progress.style.width=Math.min(100,Math.max(0,100*(1-remaining/(t.minutes*60))))+'%';}
 async function onForm(event){const form=event.target;if(!form.id)return;event.preventDefault();const f=new FormData(form),get=name=>String(f.get(name)||'').trim();try{
- if(form.id==='hw-add-date'){
+ if(form.id==='goal-form'){
+  const taskId=form.dataset.id,goal=Number(get('goal'));
+  if(!Number.isInteger(goal))throw Error('Objectif invalide');
+  const t=tasksFor(dayNow()).find(x=>x.id===taskId);
+  if(!t||goal<1||goal>taskMaximum(t))throw Error('Objectif supérieur à la limite parentale');
+  closeModal();tab='today';activeDay=dayNow();await startTask(taskId,goal);
+ }
+ else if(form.id==='hw-add-date'){
   const due=get('due'),count=Number(get('count'));
   if(!/^\d{4}-\d{2}-\d{2}$/.test(due)||!Number.isFinite(Date.parse(due+'T12:00:00Z')))throw Error('Choisis une date valide');
   if(!Number.isInteger(count)||count<1||count>60)throw Error('Indique entre 1 et 60 devoirs');

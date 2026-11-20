@@ -651,7 +651,7 @@ function goalPreview(t,goal){
  </div>
  <div class="nm-scenario-list" aria-live="polite">
   <div class="nm-scenario-row"><span>🎯 En ${secondsLabel(goal*60)}</span><strong>${rewardString(onTarget)}</strong></div>
-  <div class="nm-scenario-row"><span>⚡ En ${secondsLabel(Math.max(1,Math.round(goal*30)))}</span><strong>${rewardString(quick)}</strong></div>
+  ${quick.xp>onTarget.xp||quick.coins>onTarget.coins?`<div class="nm-scenario-row"><span>⚡ En ${secondsLabel(Math.max(1,Math.round(goal*30)))}</span><strong>${rewardString(quick)}</strong></div>`:''}
   <div class="nm-scenario-row"><span>🐢 En ${secondsLabel(goal*120)}</span><strong>${rewardString(slow)}</strong></div>
  </div>
  <p class="nm-cap-note">${limit?`Limite parentale : ${max} min. Passé ce temps : aucun gain.`:'Aucune limite de temps.'}</p>`;

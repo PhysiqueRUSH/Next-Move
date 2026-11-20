@@ -557,10 +557,10 @@ function taskModal(identifier){
     ${field('Pièces MAXIMUM gagnables','coinsMax','number',caps.coins,'min="0" max="500" required')}
     ${field('Échéance facultative','deadline','time',t.deadline||'')}
     ${selectField('Priorité','priority',[[1,'1 · Obligatoire'],[2,'2 · Important'],[3,'3 · Flexible']],t.priority)}
-    ${selectField('Validation','validation',[['self','Autovalidation'],['parent','Approbation parentale']],t.validation)}
+    ${selectField('Validation (parent obligatoire si chrono limité)','validation',[['self','Autovalidation'],['parent','Approbation parentale']],taskHasLimit(t)?'parent':t.validation)}
     ${selectField('Si non terminée','carry',[['expire','Expire'],['carry','Reporter'],['keep','Conserver']],t.carry)}
    </div>
-   <p class="helper">Le plafond XP / pièces n'est pas une récompense fixe : les gains augmentent progressivement si la mission est réalisée plus vite. Les horaires libres n'ont pas de retard au démarrage.</p>
+   <p class="helper">Le plafond XP / pièces n'est pas une récompense fixe : les gains augmentent progressivement si la mission est réalisée plus vite. Les horaires libres n'ont pas de retard au démarrage. <b>Toute mission avec une limite de temps nécessite automatiquement la validation du parent avec son code PIN.</b></p>
    <div class="field"><label>Jours actifs</label>${dayChecks(t.days||[])}</div>
    <div class="field"><label>Types de journée</label>${modeChecks(t.modes||[])}</div>
    <div class="field"><label>Étapes (une par ligne)</label><textarea name="steps">${escape((t.steps||[]).join('\n'))}</textarea></div>
@@ -1153,7 +1153,7 @@ async function onForm(event){const form=event.target;if(!form.id)return;event.pr
   if(![xp,coins].every(n=>Number.isInteger(n)&&n>=0&&n<=500))throw Error('Plafonds de gains invalides');
   const t={...old,id:identifier,title:get('title'),category:Number(get('category')),
    time:get('time'),minutes:minutesValue,maxMinutes:max,hasTimeLimit:limit,scheduleMode:mode,locked:mode==='fixed',
-   xpMax:xp,coinsMax:coins,priority:Number(get('priority')),validation:get('validation'),carry:get('carry'),
+   xpMax:xp,coinsMax:coins,priority:Number(get('priority')),validation:limit?'parent':get('validation'),carry:get('carry'),
    days:f.getAll('days').map(Number),modes:f.getAll('modes'),steps:get('steps').split('\n').map(x=>x.trim()).filter(Boolean),
    enabled:f.has('enabled'),notify:f.has('notify')&&mode==='fixed',deadline:get('deadline')};
   if(!t.title||!t.days.length||!t.modes.length)throw Error('Nom, jours et périodes obligatoires');

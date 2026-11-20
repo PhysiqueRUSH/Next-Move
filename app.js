@@ -256,7 +256,6 @@ function renderHomework(){
  const cap=homeworkCaps();
  const reward=hwReward(selected,homeworkDraft.estimate,homeworkDraft.estimate*60);
  const quick=hwReward(selected,homeworkDraft.estimate,homeworkDraft.estimate*30);
- const slower=hwReward(selected,homeworkDraft.estimate,homeworkDraft.estimate*120);
  const best=quick;
  const urgent=dates.filter(x=>hwDaysAhead(x.due)<=1&&hwAvailable(x.due)>0);
  const urgentUnselected=urgent.some(x=>(homeworkDraft.items[x.due]||0)===0);
@@ -297,7 +296,7 @@ function renderHomework(){
     <button class="hw-compact-btn" data-action="hw-estimate-plus" aria-label="Cinq minutes de plus">+</button></div></div>
   ${urgentUnselected?'<div class="hw-urgent">⚠️ Pense aux devoirs à rendre bientôt !</div>':''}
   <div class="hw-maximum">🏆 Maximum possible avec ces devoirs : <strong id="hw-best">${best.xp} XP · ${best.coins} pièces</strong><span> (fin en <span id="hw-best-time">${secondsLabel(Math.round(homeworkDraft.estimate*30))}</span> ou moins)</span><br><small>Plafond parental : ${total*cap.xp} XP · ${total*cap.coins} pièces.</small></div>
-  <div class="hw-reward-preview" aria-live="polite"><span>🎯 Dans mon objectif : <strong id="hw-preview-target">${reward.xp} XP · ${reward.coins} 🪙</strong></span><span>⚡ Deux fois plus vite : <strong id="hw-preview-quick">${quick.xp} XP · ${quick.coins} 🪙</strong></span><span>🐢 Deux fois plus lent : <strong id="hw-preview-slow">${slower.xp} XP · ${slower.coins} 🪙</strong></span></div>
+  <div class="hw-reward-preview" aria-live="polite"><span>🎯 Dans mon objectif : <strong id="hw-preview-target">${reward.xp} XP · ${reward.coins} 🪙</strong></span><span>⚡ Deux fois plus vite : <strong id="hw-preview-quick">${quick.xp} XP · ${quick.coins} 🪙</strong></span></div>
   <button class="btn primary block hw-launch" data-action="hw-start" ${total===0?'disabled':''}>▶ JE LANCE MON BLOC</button>
   <small class="hw-small">Pas de temps limite pour les devoirs. Les gains dépendent de la vitesse, du volume réellement terminé et de l’avance par date.</small>`}
  </section>
@@ -497,6 +496,12 @@ function renderAdminSettings(){const rules=hwRules();return `${adminHeading('⚙
  <section class="card" style="margin-top:14px"><h2>📱 Données sur cet appareil</h2><p class="small muted">Les missions, XP, récompenses et historiques restent sur ce Samsung. Exporter une sauvegarde est indispensable avant de changer de téléphone ou d'effacer les données de Chrome. Le PIN est une protection d'interface, pas un coffre-fort inviolable.</p><div id="pair-code"></div></section>
  <section class="card" style="margin-top:14px"><h2>Configuration générale</h2><div class="field"><label>Prénom</label><input id="child-name" value="${escape(data.config.childName||'Mahé')}" maxlength="30"></div><div class="field"><label>URL PRONOTE (facultatif)</label><input id="pronote-url" value="${escape(data.config.pronoteUrl||'')}" placeholder="https://..."></div><div class="field"><label>Niveau d’autonomie</label><select id="rank-mode"><option value="1" ${data.config.rankMode===1?'selected':''}>Guidé</option><option value="2" ${data.config.rankMode===2?'selected':''}>Semi-autonome</option><option value="3" ${data.config.rankMode===3?'selected':''}>Autonome</option></select></div><button class="btn primary" data-action="save-settings">Enregistrer</button></section>
 
+ <section class="card" style="margin-top:14px"><h2>🪙 Échanger des XP contre des pièces</h2>
+ <form id="xp-rate-form">
+ ${field('Nombre d’XP nécessaires pour obtenir 1 pièce','xpPerCoin','number',exchangeRate(),'min="1" max="1000" required')}
+ <p class="small muted">Mahé peut convertir ses XP disponibles dans Cadeaux. Ses niveaux et ses trophées restent acquis. Les malus touchent les XP disponibles, pas les niveaux.</p>
+ <button class="btn primary block" type="submit">Enregistrer le taux de conversion</button>
+ </form></section>
  <section class="card" style="margin-top:14px"><h2>📚 Gains maximum par devoir</h2>
  <form id="homework-caps">
   <div class="form-grid">
@@ -725,7 +730,7 @@ function goalPreview(t,goal){
  const limit=taskHasLimit(t),late=taskProjectedLate(t),fixed=scheduleMode(t)==='fixed';
  const cap=taskCaps(t),max=taskMaximum(t),finishBy=attainableSeconds(t,goal);
  const scenario=seconds=>taskReward(t,goal,max,seconds,late);
- const onTarget=scenario(goal*60),quick=scenario(Math.max(1,Math.round(goal*30))),slow=scenario(goal*120);
+ const onTarget=scenario(goal*60),quick=scenario(Math.max(1,Math.round(goal*30)));
  const best=scenario(finishBy);
  const perfect=late<60||!fixed;
  return `<div class="nm-winning-rule">
@@ -737,7 +742,6 @@ function goalPreview(t,goal){
  <div class="nm-scenario-list" aria-live="polite">
   <div class="nm-scenario-row"><span>🎯 En ${secondsLabel(goal*60)}</span><strong>${rewardString(onTarget)}</strong></div>
   ${quick.xp>onTarget.xp||quick.coins>onTarget.coins?`<div class="nm-scenario-row"><span>⚡ En ${secondsLabel(Math.max(1,Math.round(goal*30)))}</span><strong>${rewardString(quick)}</strong></div>`:''}
-  <div class="nm-scenario-row"><span>🐢 En ${secondsLabel(goal*120)}</span><strong>${rewardString(slow)}</strong></div>
  </div>
  <p class="nm-cap-note">${limit?`Limite parentale : ${max} min. Passé ce temps : aucun gain.`:'Aucune limite de temps.'}</p>`;
 }
@@ -870,7 +874,7 @@ function updateHomeworkPreview(){
  const best=hwReward(selection,goal,goal*30);
  const maximum=$('#hw-best');if(maximum)maximum.textContent=best.xp+' XP · '+best.coins+' pièces';
  const time=$('#hw-best-time');if(time)time.textContent=secondsLabel(Math.round(goal*30));
- for(const [id,seconds] of [['hw-preview-target',goal*60],['hw-preview-quick',goal*30],['hw-preview-slow',goal*120]]){
+ for(const [id,seconds] of [['hw-preview-target',goal*60],['hw-preview-quick',goal*30]]){
   const el=$('#'+id);if(!el)continue;
   const earned=hwReward(selection,goal,seconds);
   el.textContent=earned.xp+' XP · '+earned.coins+' 🪙';
@@ -1095,6 +1099,12 @@ async function onForm(event){const form=event.target;if(!form.id)return;event.pr
   const old=db.homeworkDates.find(x=>x.due===due);if(!old)throw Error('Date introuvable');
   if(count===0)db.homeworkDates=db.homeworkDates.filter(x=>x.due!==due);else old.count=count;
   closeModal();hwPersist();
+ }
+ else if(form.id==='xp-rate-form'){
+  if(role!=='parent'||!pinUnlocked)throw Error('Accès parent requis');
+  const rate=Number(get('xpPerCoin'));
+  if(!Number.isInteger(rate)||rate<1||rate>1000)throw Error('Taux de conversion invalide');
+  const c=cloneConfig();c.xpPerCoin=rate;await updateConfig(c);
  }
  else if(form.id==='homework-caps'){
   if(role!=='parent'||!pinUnlocked)throw Error('Accès parent requis');

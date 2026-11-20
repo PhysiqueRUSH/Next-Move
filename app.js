@@ -142,8 +142,69 @@ function render(){if(!initDone)return;
  $('#app').innerHTML=`<main class="app ${isParent?'parent-app':'child-app'}">${header}${demo}${page}</main><nav class="tabs" aria-label="Navigation">${nav.map(([key,icon,label])=>`<button data-action="tab" data-id="${key}" class="${current===key?'active':''}"><span>${icon}</span>${label}</button>`).join('')}</nav>`;
  window.scrollTo({top:scroll,behavior:'instant'});clockTick();
 }
-function renderChild(){switch(tab){case 'planning':return renderPlanning();case 'challenges':return renderChallenges();case 'shop':return renderShop();case 'profile':return renderProfile();case 'parent-settings':return renderParentAccess();default:return renderToday();}}
+function renderChild(){switch(tab){case 'homework':return renderHomework();case 'planning':return renderPlanning();case 'challenges':return renderChallenges();case 'shop':return renderShop();case 'profile':return renderProfile();case 'parent-settings':return renderParentAccess();default:return renderToday();}}
 function renderParentAccess(){return `<section class="nm-mission-card nm-empty-screen"><span class="nm-emoji">🔐</span><h1>Réglages parentaux</h1><p>Accès réservé au parent.</p><button class="btn primary block" data-action="parent-entry">Saisir mon code</button></section>`}
+
+function renderHomework(){
+ hwRefreshDraft();
+ const dates=hwDateRows(),selected=hwSelection(),total=hwSum(selected);
+ const reward=hwReward(selected,homeworkDraft.estimate,homeworkDraft.estimate*60);
+ const running=(data.homeworkBlocks||[]).find(b=>runFor(b.id,b.day)?.status==='running');
+ const dateCards=dates.map(row=>{
+  const available=hwAvailable(row.due),ahead=hwDaysAhead(row.due);
+  const warn=ahead<0?'⚠️ En retard':ahead===0?'Pour aujourd’hui':ahead===1?'Pour demain':ahead+' jours d’avance possibles';
+  return `<div class="hw-date-card">
+   <div class="hw-date-main"><strong>${escape(hwDateText(row.due))}</strong><span class="hw-status">${warn}</span></div>
+   <div class="hw-counter"><button class="hw-compact-btn" data-action="hw-count-minus" data-due="${row.due}" aria-label="Un devoir de moins">−</button><button class="hw-count-num" data-action="hw-edit-count" data-due="${row.due}" title="Modifier le nombre">${row.count}</button><button class="hw-compact-btn" data-action="hw-count-plus" data-due="${row.due}" aria-label="Un devoir de plus">+</button></div>
+   ${available<row.count?`<small>${available} disponible${available>1?'s':''} · le reste est déjà réservé</small>`:''}
+  </div>`;
+ }).join('');
+ const pickCards=dates.filter(x=>hwAvailable(x.due)>0).map(row=>{
+  const picked=Number(homeworkDraft.items[row.due]||0),max=hwAvailable(row.due);
+  return `<div class="hw-pick-row"><div><strong>${escape(hwDateText(row.due))}</strong><small>${hwDaysAhead(row.due)>0?'⭐ +'+Math.min(14,hwDaysAhead(row.due)*2)+' XP/devoir d’avance':hwDaysAhead(row.due)===0?'Échéance aujourd’hui':'Échéance dépassée'} · ${max} dispo.</small></div>
+   <div class="hw-counter"><button class="hw-compact-btn" data-action="hw-pick-minus" data-due="${row.due}" aria-label="Retirer un devoir">−</button><strong class="hw-count-num">${picked}</strong><button class="hw-compact-btn" data-action="hw-pick-plus" data-due="${row.due}" aria-label="Ajouter un devoir">+</button></div>
+  </div>`;
+ }).join('');
+ const recent=(data.homeworkBlocks||[]).slice(-6).reverse().map(b=>{
+  const r=runFor(b.id,b.day),label=r?.status==='complete'?'✅ Terminé':r?.status==='pending_parent'?'⏳ À valider':r?.status==='running'?'⏱️ En cours':r?.status==='rejected'?'↩ Non validé':'📝 Préparé';
+  return `<div class="hw-history-row"><span>${escape(hwDateText(b.day))} · ${hwSum(b.items)} devoirs</span><span>${label}</span></div>`;
+ }).join('');
+ return `<h1 class="nm-page-title">📚 Mes devoirs</h1>
+ <div class="hw-hint">1. Regarde PRONOTE, puis note seulement les nombres.</div>
+ <section class="hw-panel">
+  <div class="hw-heading"><h2>Devoirs restants</h2><span class="hw-accent">${dates.reduce((a,x)=>a+Number(x.count),0)} au total</span></div>
+  <div class="hw-dates">${dateCards||'<div class="hw-empty">Ajoute ta première date de devoirs.</div>'}</div>
+  <form id="hw-add-date" class="hw-add-form"><div class="field"><label for="hw-new-date">Pour le</label><input id="hw-new-date" type="date" name="due" value="${futureDate(dayNow(),1)}" required></div><div class="field"><label for="hw-new-count">Combien ?</label><input id="hw-new-count" type="number" name="count" min="1" max="60" value="1" required></div><button class="btn primary" type="submit">+ Ajouter</button></form>
+ </section>
+ <section class="hw-panel hw-compose">
+  <div class="hw-heading"><h2>2. Mon bloc</h2><span class="hw-accent">${total} devoir${total>1?'s':''}</span></div>
+  ${running?`<div class="hw-running">⏱️ Un bloc est déjà en cours.<button class="btn primary block" data-action="homework-to-mission">Voir mon chrono →</button></div>`:`
+  ${pickCards||'<div class="hw-empty">Ajoute des devoirs pour préparer ton bloc.</div>'}
+  <div class="hw-estimate"><div><strong>3. Mon objectif de temps</strong><small>Combien de minutes pour ce bloc ?</small></div>
+   <div class="hw-counter"><button class="hw-compact-btn" data-action="hw-estimate-minus" aria-label="Cinq minutes de moins">−</button>
+    <input id="hw-duration" type="number" min="5" max="240" step="5" inputmode="numeric" value="${homeworkDraft.estimate}" aria-label="Durée estimée en minutes">
+    <button class="hw-compact-btn" data-action="hw-estimate-plus" aria-label="Cinq minutes de plus">+</button></div></div>
+  <div class="hw-reward-preview">🏆 ${reward.xp} XP possibles <span>🪙 ${reward.coins} pièces</span></div>
+  <button class="btn primary block hw-launch" data-action="hw-start" ${total===0?'disabled':''}>▶ JE LANCE MON BLOC</button>
+  <small class="hw-small">Bonus si tu respectes ton chrono. Aucun gain pour un devoir non terminé.</small>`}
+ </section>
+ ${recent?`<details class="hw-panel hw-history"><summary>📈 Mes derniers blocs</summary>${recent}</details>`:''}`;
+}
+function modalHomeworkCount(due){
+ const row=hwDateRows().find(x=>x.due===due);if(!row)return;
+ openModal(`<h2>📚 Devoirs pour le ${escape(hwDateText(due))}</h2><form id="hw-set-count" data-due="${due}">${field('Nombre restant','count','number',row.count,'min="0" max="60" required')}<p class="helper">Indique le nombre de devoirs encore à faire pour cette date.</p><button class="btn primary block">Enregistrer</button></form>`);
+}
+function modalHomeworkFinish(taskId){
+ const b=(data.homeworkBlocks||[]).find(x=>x.id===taskId);
+ if(!b)return toast('Bloc introuvable');
+ openModal(`<h2>🏁 Bloc terminé ?</h2><p>Combien de devoirs as-tu vraiment terminés ?</p>
+ <form id="hw-finish" data-id="${escape(taskId)}">
+ ${(b.items||[]).map(x=>`<div class="hw-pick-row"><strong>${escape(hwDateText(x.due))}</strong><div class="hw-counter"><input type="number" min="0" max="${Number(x.count)}" step="1" name="done-${x.due}" value="${Number(x.count)}" aria-label="Devoirs terminés le ${escape(hwDateText(x.due))}"></div><span class="hw-finish-max">/ ${Number(x.count)}</span></div>`).join('')}
+ <button type="submit" class="btn primary block hw-launch">✓ VALIDER MES DEVOIRS</button>
+ <p class="helper">Ne compte que les devoirs vraiment terminés. Les autres resteront à faire.</p>
+ </form>`);
+}
+
 function renderToday(){
  const all=tasksFor(activeDay);
  const finished=all.filter(t=>{const r=runFor(t.id,activeDay);return r&&['complete','pending_parent'].includes(r.status)}).length;
@@ -154,6 +215,8 @@ function renderToday(){
  let hero='';
  if(!mission){
   hero=`<section class="nm-mission-card nm-empty-screen"><span class="nm-emoji">${all.length?'🏆':'🌟'}</span><h1>${all.length?'Tous les défis sont terminés !':'Rien de prévu aujourd’hui'}</h1><p>${all.length?'Bravo, tu as assuré !':'Tu peux profiter de ton temps libre.'}</p><button class="btn primary" data-action="tab" data-id="challenges">Voir mes trophées</button></section>`;
+ }else if(mission.homeworkLauncher){
+  hero=`<section class="nm-mission-card"><div class="nm-eyebrow"><span class="nm-pulse"></span>MISSION DEVOIRS</div><h1 class="nm-mission-title">📚 Blocs de devoirs</h1><div class="nm-mission-meta">Choisis tes devoirs et ton objectif de temps.</div><div class="nm-timer-stage"><div class="timer" style="font-size:52px">🎯</div></div><button class="btn primary block nm-one-action" data-action="show-homework">PRÉPARER MON BLOC →</button></section>`;
  }else{
   const r=runFor(mission.id,activeDay),running=r?.status==='running';
   const mins=Math.max(1,Number(mission.minutes)||1);
@@ -177,7 +240,7 @@ function renderToday(){
  return `<div class="nm-topbar"><span class="nm-greeting">Salut ${name} 👋</span><div class="nm-saldo"><span>🪙 ${Number(data.wallet.coins)||0}</span><strong>Niv. ${level.n}</strong></div></div>
  <div class="nm-day-progress"><div class="nm-progress-line"><span>${today?"Aujourd’hui":escape(dateLabel(activeDay))}</span><strong>${finished} / ${all.length} missions</strong></div><div class="progress"><span style="width:${all.length?Math.round(100*finished/all.length):0}%"></span></div></div>
  ${hero}
- <div class="nm-bottom-nav"><button data-action="tab" data-id="planning">📅 Voir toute ma journée <span>→</span></button></div>`;
+ <div class="nm-bottom-nav"><button data-action="tab" data-id="planning">📅 Voir toute ma journée <span>→</span></button><button data-action="show-homework">📚 Mes devoirs <span>→</span></button></div>`;
 }
 function renderMissionList(list,day){
  const someoneRunning=list.some(t=>runFor(t.id,day)?.status==='running');
@@ -194,7 +257,7 @@ function renderPlanning(){
  return `<h1 class="nm-page-title">📅 Ma journée</h1>
  <div class="nm-day-picker"><button class="btn mini" data-action="day-prev" aria-label="Jour précédent">‹</button><strong>${escape(dateLabel(activeDay))}</strong><button class="btn mini" data-action="day-next" aria-label="Jour suivant">›</button></div>
  ${renderMissionList(list,activeDay)}
- <div class="nm-quick-actions"><button class="btn" data-action="pronote">📚 PRONOTE ↗</button><button class="btn primary" data-action="add-homework">+ Devoir</button></div>
+ <div class="nm-quick-actions"><button class="btn primary block" data-action="show-homework">📚 Préparer un bloc de devoirs →</button></div>
  <details class="nm-planner-tools"><summary>⏱️ Je suis en retard</summary><p>Je peux proposer un nouvel ordre sans déplacer les obligations importantes.</p><button class="btn block" data-action="replan">Réorganiser ma journée</button><div id="replan-result"></div></details>`;
 }
 const badges=[['⚡','Démarrage éclair',()=>data.runs.some(r=>r.status==='complete'&&r.late_s===0)],['🎯','10 missions',()=>data.runs.filter(r=>r.status==='complete').length>=10],['🏆','50 missions',()=>data.runs.filter(r=>r.status==='complete').length>=50],['🚀','Niveau 5',()=>levelInfo(data.wallet.xp).n>=5],['💎','Niveau 10',()=>levelInfo(data.wallet.xp).n>=10],['⏱️','Chrono dompté',()=>data.runs.filter(r=>r.status==='complete'&&r.elapsed_s<=900).length>=5],['🧠','Autonomie',()=>data.runs.filter(r=>r.late_s===0&&r.status==='complete').length>=20],['📚','Érudit',()=>data.runs.filter(r=>r.task_id.startsWith('hw-')&&r.status==='complete').length>=5],['🔥','Persévérant',()=>data.runs.filter(r=>r.status==='complete').length>=30]];
@@ -328,6 +391,7 @@ async function startTask(taskId){const day=activeDay;if(day!==dayNow())return to
  catch(e){if(!navigator.onLine){const obj={id:'offline-'+rand(),task_id:taskId,day,started_at:Date.now(),planned_at:Date.now(),status:'running',offline:true};data.runs.unshift(obj);localStorage.setItem('nm_offline_running',JSON.stringify(obj));render();toast('Hors ligne · chrono local actif. Validation parentale après synchronisation.')}else toast('Impossible de démarrer : '+e.message)}
 }
 async function finishTask(taskId){const run=runFor(taskId,activeDay);if(!run||run.status!=='running')return;
+ if(tasksFor(activeDay).find(t=>t.id===taskId)?.homeworkBlock){modalHomeworkFinish(taskId);return;}
  if(!confirm('Confirmer que la mission est réellement terminée ?'))return;
  if(run.offline){run.finished_at=nowMs();run.elapsed_s=Math.floor((run.finished_at-run.started_at)/1000);run.status='pending_parent';const q=offlineRuns();q.push({taskId,day:activeDay,startedAt:run.started_at,finishedAt:run.finished_at});saveOfflineRuns(q);localStorage.removeItem('nm_offline_running');render();celebration('Défi terminé hors ligne : en attente de vérification');return;}
  try{const result=await call('/run/finish','POST',{taskId,day:activeDay});await refresh(true);if(result.status==='pending_parent')toast('⏳ Mission terminée, validation parentale en attente');else celebration('Mission terminée ! +'+result.points.xp+' XP')}catch(e){
@@ -382,7 +446,9 @@ const actions={
  'pin-submit':()=>pinSubmit(),
  'close-modal':()=>closeModal(),
  'pronote':()=>openPronote(),
- 'add-homework':()=>modalAddHomework(),
+ 'add-homework':()=>{tab='homework';render()},
+ 'show-homework':()=>{tab='homework';render();window.scrollTo(0,0)},
+ 'homework-to-mission':()=>{tab='today';activeDay=dayNow();render()},
  'replan':()=>replan(),
  'apply-plan':async()=>{try{const plan=window.__suggestedMovePlan||{};await call('/plan/set','POST',{day:activeDay,plan});await refresh(true);toast('📅 Plan de rattrapage enregistré')}catch(e){toast(e.message)}},
  'edit-task':(_,el)=>taskModal(el.dataset.id),

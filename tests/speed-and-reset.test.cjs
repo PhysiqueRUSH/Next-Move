@@ -71,6 +71,8 @@ async function main(){
  const finish=await t.demoCall('/run/finish','POST',{taskId:'speed-test',day});
  assert.equal(finish.status,'pending_parent');
  assert.equal(t.db.wallet.xp,0);
+ await assert.rejects(t.demoCall('/run/approve','POST',{id:created.run.id,approve:true}),/code PIN/i);
+ assert.equal(t.db.wallet.xp,0);
  const approved=await t.demoCall('/run/approve','POST',{id:created.run.id,approve:true,pin});
  assert.equal(approved.status,'complete');
  assert.ok(t.db.wallet.xp>0);

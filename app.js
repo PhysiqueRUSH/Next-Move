@@ -316,8 +316,12 @@ function renderToday(){
   const hasLimit=running?r.has_time_limit!==false:taskHasLimit(mission);
   const parentLimit=hasLimit?(running?Number(r.max_minutes)||taskMaximum(mission):taskMaximum(mission)):null;
   const category=escape(categoryList()[mission.category]||'🎯 Mission');
-  const maxXp=mission.homeworkBlock?hwSum(mission.items||[])*(r?.homework_caps?.xp??homeworkCaps().xp):(r?.reward_caps?.xp??taskCaps(mission).xp);
-  const maxCoins=mission.homeworkBlock?hwSum(mission.items||[])*(r?.homework_caps?.coins??homeworkCaps().coins):(r?.reward_caps?.coins??taskCaps(mission).coins);
+  const currentGoal=Number(r?.goal_minutes)||mins;
+  const expectedLate=running?Math.max(0,Math.floor(((r.started_at||Date.now())-(r.planned_at||Date.now()))/1000)):taskProjectedLate(mission);
+  const reachable=mission.homeworkBlock
+   ?hwReward(mission.items||[],currentGoal,Math.max(1,Math.round(currentGoal*30)),activeDay,null,r?.homework_caps||homeworkCaps())
+   :taskReward(mission,currentGoal,parentLimit||taskMaximum(mission),1,expectedLate,r?.reward_caps||taskCaps(mission));
+  const maxXp=reachable.xp,maxCoins=reachable.coins;
   hero=`<section class="nm-mission-card">
    <div class="nm-eyebrow"><span class="nm-pulse"></span>${running?'DÉFI EN COURS':'TA PROCHAINE MISSION'}</div>
    <h1 class="nm-mission-title">${escape(mission.title)}</h1>

@@ -1,0 +1,19 @@
+name = "next-move-api"
+main = "worker.js"
+compatibility_date = "2026-08-01"
+
+[vars]
+FIREBASE_PROJECT_ID = "REMPLACER_PROJECT_ID"
+APP_ORIGIN = "https://physiquerush.github.io"
+APP_URL = "https://physiquerush.github.io/Next-Move/"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "next-move"
+database_id = "REMPLACER_D1_DATABASE_ID"
+
+[triggers]
+crons = ["* * * * *"]
+# Secrets à saisir via Wrangler, jamais sur GitHub :
+# PARENT_EMAIL
+# FCM_SERVICE_ACCOUNT_JSON

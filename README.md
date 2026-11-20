@@ -23,15 +23,15 @@ Next-Move/
 
 **État de livraison :** code source prêt à déployer, démonstration locale utilisable immédiatement. La connexion parent/enfant, la synchronisation multi-appareils et les push ne peuvent fonctionner tant que les comptes gratuits ne sont pas paramétrés. Ces fonctions doivent être vérifiées sur les deux téléphones après déploiement. Ne pas présenter la version hébergée comme sécurisée tant que les secrets, le Worker et les droits d'accès ne sont pas configurés.
 
-## Étape 1 — Nouveau dépôt GitHub (gratuit)
+## Étape 1 — Activer GitHub Pages (gratuit)
 
-1. Ouvrir https://github.com/new en étant connecté au compte **PhysiqueRUSH**.
-2. Repository name : **Next-Move**.
-3. Visibilité : **Public** (nécessaire pour GitHub Pages gratuit sur un compte personnel standard). N'y mettre **aucune donnée privée**.
-4. Créer le dépôt, puis utiliser **Add file → Upload files** pour importer le contenu décompressé de cette archive, en conservant les dossiers `icons` et `cloudflare`.
-5. Dans **Settings → Pages**, choisir **Deploy from a branch → main → /(root)**, puis enregistrer.
-6. L'URL attendue sera `https://physiquerush.github.io/Next-Move/`.
-7. À ce stade, la démonstration fonctionne, mais **les données sont uniquement locales**. Ne pas encore demander à Mahé de l'utiliser pour le vrai suivi.
+Le dépôt **[PhysiqueRUSH/Next-Move](https://github.com/PhysiqueRUSH/Next-Move)** a été créé et les fichiers ont été publiés sur la branche `main`. Il n’est pas nécessaire de créer un nouveau dépôt ni de téléverser l’archive.
+
+1. Ouvrir https://github.com/PhysiqueRUSH/Next-Move/settings/pages avec le compte GitHub propriétaire.
+2. Dans **Build and deployment**, choisir **Deploy from a branch**.
+3. Sélectionner **main** puis **/(root)**, cliquer sur **Save**.
+4. Une fois le déploiement terminé, ouvrir `https://physiquerush.github.io/Next-Move/`.
+5. L'application fonctionne alors en **démonstration locale**. Il faudra connecter Firebase et Cloudflare pour synchroniser les téléphones et envoyer de vraies notifications.
 
 ### Attention
 

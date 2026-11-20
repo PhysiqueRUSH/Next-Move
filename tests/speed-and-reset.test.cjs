@@ -2,6 +2,9 @@
 const fs=require('node:fs');
 const vm=require('node:vm');
 const assert=require('node:assert/strict');
+const nodeCrypto=require('node:crypto');
+const pin='1234';
+const pinHash=nodeCrypto.createHash('sha256').update('NEXT MOVE LOCAL PIN v1'+pin).digest('hex');
 let source=fs.readFileSync('app.js','utf8');
 const end=/bootstrap\(\);\s*\}\)\(\);\s*$/;
 assert.match(source,end);
@@ -13,8 +16,9 @@ const localStorage={
  get length(){return storage.size}
 };
 let n=0;
+storage.set('nextmove_parent_pin_v1',pinHash);
 const ctx={console,Intl,Date,Math,JSON,Array,Set,Map,Number,String,Promise,localStorage,
- navigator:{onLine:true},crypto:{randomUUID:()=>String(++n).padStart(8,'0')}};
+ navigator:{onLine:true},crypto:{randomUUID:()=>String(++n).padStart(8,'0'),subtle:nodeCrypto.webcrypto.subtle},TextEncoder};
 vm.createContext(ctx);vm.runInContext(source,ctx,{filename:'app.js'});
 const t=ctx.__test;
 async function main(){
@@ -102,7 +106,7 @@ async function main(){
  assert.equal(ended.points.coins,0);
  assert.equal(ended.penaltyPending,true);
  assert.deepEqual({...t.db.wallet},walletBefore,'Penalty must NEVER apply before approval');
- await t.demoCall('/run/penalty-resolve','POST',{id:over.run.id,approve:true});
+ await t.demoCall('/run/penalty-resolve','POST',{id:over.run.id,approve:true,pin});
  assert.equal(over.run.penaltyDecision,'approved');
  assert.equal(t.db.wallet.xp,Math.max(0,walletBefore.xp-5));
  assert.equal(t.db.wallet.coins,Math.max(0,walletBefore.coins-3));

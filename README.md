@@ -128,3 +128,11 @@ En mode local, la version installée sur Android conserve les données dans le s
 - L'onglet **Cadeaux** présente seulement les pièces déjà gagnées, les cadeaux disponibles et les demandes en cours.
 - Le taux de conversion a été retiré des paramètres parentaux ; l'action d'échange est désactivée dans le moteur de l'application.
 - Les XP et pièces déjà gagnés ne sont pas modifiés, les niveaux et trophées sont conservés. Les anciennes conversions déjà effectuées ne sont pas annulées, mais aucun nouvel échange n'est possible.
+
+## NEXT MOVE 4.4 — Défi chrono sans encadré « Maximum aujourd'hui »
+
+L'écran de lancement de mission a été simplifié : **l'encadré « Ton maximum aujourd'hui » a été entièrement supprimé**. Trois lignes compactes apparaissent pour les missions à durée limitée : **dans l'objectif choisi**, **deux fois plus vite**, et **au-delà de la limite parentale (0 XP / 0 pièce)**. Les tâches sans limite n'ont pas de scénario de dépassement.
+
+Pour les missions à heure fixe, si le démarrage peut encore bénéficier de la ponctualité, chaque scénario affiche distinctement **les XP et les pièces de ponctualité compris dans le total** (calculés à partir de la différence avec le même scénario sans ponctualité). Si l'horaire prévu est dépassé, un message court indique **l'heure prévue et l'absence du bonus**, sans autre encadré ni plafond de gains théorique.
+
+Les prévisions sont recalculées immédiatement lorsque Mahé modifie son objectif avec +, − ou au clavier, et rafraîchies lorsque l'heure courante change de minute pendant que la fenêtre est ouverte. Les calculs de gains réels et les plafonds parentaux restent inchangés ; il s'agit d'une simplification de la présentation uniquement.

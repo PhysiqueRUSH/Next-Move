@@ -1,6 +1,6 @@
-/* NEXT MOVE · Hors ligne + Firebase Cloud Messaging, même SW pour toute la PWA. */
-const CACHE='next-move-local-v2.2.0';
-const ASSETS=['./','./index.html','./styles.css','./ui.css','./homework.css','./app.js','./config.js','./manifest.json','./icons/icon-192.png','./icons/icon-512.png'];
+/* NEXT MOVE · PWA locale et cache hors ligne. */
+const CACHE='next-move-local-v3.0.0';
+const ASSETS=['./','./index.html','./styles.css','./ui.css','./homework.css','./progression.css','./app.js','./config.js','./manifest.json','./icons/icon-192.png','./icons/icon-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));});
 self.addEventListener('activate',e=>{e.waitUntil(Promise.all([caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))),self.clients.claim()]));});
 self.addEventListener('fetch',e=>{

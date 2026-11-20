@@ -5,7 +5,7 @@ const assert=require('node:assert/strict');
 let source=fs.readFileSync('app.js','utf8');
 const end=/bootstrap\(\);\s*\}\)\(\);\s*$/;
 assert.match(source,end);
-source=source.replace(end,"globalThis.__test={db,task,dayNow,dayOf,taskReward,hwReward,homeworkMaximum,taskMaximum,levelInfo,levelCoins,applyLevelRewards,runFor,demoCall,resetState,setData:()=>{data={...db}},currentDb:()=>db};\n})();");
+source=source.replace(end,"globalThis.__test={db,task,dayNow,dayOf,taskReward,hwReward,homeworkMaximum,taskMaximum,levelInfo,levelCoins,applyLevelRewards,runFor,demoCall,resetState,renderToday,renderProfile,renderAdminSettings,renderAdminStats,renderHomework,LEVEL_REWARDS,LEVEL_MILESTONES,setData:()=>{data={...db}},currentDb:()=>db};\n})();");
 const storage=new Map();
 const localStorage={
  getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,String(v)),
@@ -69,6 +69,24 @@ async function main(){
  assert.equal(t.db.wallet.coins,Math.max(0,walletBefore.coins-3));
  await assert.rejects(t.demoCall('/run/penalty-resolve','POST',{id:over.run.id,approve:true}),/introuvable/);
 
+
+ assert.equal(t.LEVEL_REWARDS.avatar.length>=25,true,'Large avatar catalog');
+ assert.equal(t.LEVEL_REWARDS.frame.length>=10,true,'Varied frame collection');
+ assert.equal(t.LEVEL_REWARDS.title.length>=20,true,'Varied title collection');
+ assert.equal(t.LEVEL_MILESTONES.length>=10,true,'Extra level medals');
+ assert.match(t.renderProfile(),/Récompenses de niveaux/);
+ assert.match(t.renderHomework(),/Mon bloc/);
+ assert.match(t.renderToday(),/mission|Rien de prévu|défis/i);
+ assert.match(t.renderAdminSettings(),/Limites & récompenses/);
+ assert.match(t.renderAdminSettings(),/Effacer et recommencer/);
+ assert.match(t.renderAdminStats(),/Dépassements à examiner/);
+ const originalXp=t.db.wallet.xp;
+ t.db.wallet.xp=150;t.db.claimedLevels=[1];t.setData();
+ const first=t.applyLevelRewards(),again=t.applyLevelRewards();
+ assert.ok(first>0,'New level gives coins');
+ assert.equal(again,0,'Level reward may only be earned once');
+ t.db.wallet.xp=originalXp;t.setData();
+ 
  const retained=t.db.config.tasks.length;
  t.resetState('progress');
  assert.equal(t.currentDb().config.tasks.length,retained,'Progress reset preserves scheduled tasks');

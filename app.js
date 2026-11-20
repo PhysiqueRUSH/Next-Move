@@ -260,7 +260,7 @@ function renderHomework(){
     <button class="hw-compact-btn" data-action="hw-estimate-plus" aria-label="Cinq minutes de plus">+</button></div></div>
   ${urgentUnselected?'<div class="hw-urgent">⚠️ Pense aux devoirs à rendre bientôt !</div>':''}
   <div class="hw-maximum">Maximum : ${total*cap.xp} XP et ${total*cap.coins} pièces si tous les devoirs sont terminés.</div>
-  <div class="hw-reward-preview" aria-live="polite"><span>🎯 Dans mon objectif : ${reward.xp} XP · ${reward.coins} 🪙</span><span>⚡ Deux fois plus vite : ${quick.xp} XP · ${quick.coins} 🪙</span><span>🐢 Deux fois plus lent : ${slower.xp} XP · ${slower.coins} 🪙</span></div>
+  <div class="hw-reward-preview" aria-live="polite"><span>🎯 Dans mon objectif : <strong id="hw-preview-target">${reward.xp} XP · ${reward.coins} 🪙</strong></span><span>⚡ Deux fois plus vite : <strong id="hw-preview-quick">${quick.xp} XP · ${quick.coins} 🪙</strong></span><span>🐢 Deux fois plus lent : <strong id="hw-preview-slow">${slower.xp} XP · ${slower.coins} 🪙</strong></span></div>
   <button class="btn primary block hw-launch" data-action="hw-start" ${total===0?'disabled':''}>▶ JE LANCE MON BLOC</button>
   <small class="hw-small">Pas de temps limite pour les devoirs. Les gains dépendent de la vitesse, du volume réellement terminé et de l’avance par date.</small>`}
  </section>
@@ -718,6 +718,18 @@ function hwAdjustPick(due,delta){
  if(delta>0&&hwSum(hwSelection())>=20){toast('20 devoirs maximum par bloc');return;}
  homeworkDraft.items[due]=next;hwRefreshDraft();render();
 }
+
+function updateHomeworkPreview(){
+ const input=$('#hw-duration'),goal=Number(input?.value);
+ if(!Number.isInteger(goal)||goal<1||goal>480)return;
+ homeworkDraft.estimate=goal;homeworkDraft.manualEstimate=true;
+ const selection=hwSelection();
+ for(const [id,seconds] of [['hw-preview-target',goal*60],['hw-preview-quick',goal*30],['hw-preview-slow',goal*120]]){
+  const el=$('#'+id);if(!el)continue;
+  const earned=hwReward(selection,goal,seconds);
+  el.textContent=earned.xp+' XP · '+earned.coins+' 🪙';
+ }
+}
 function hwAdjustEstimate(delta){
  homeworkDraft.estimate=Math.max(1,Math.min(480,Number(homeworkDraft.estimate)+delta));
  homeworkDraft.manualEstimate=true;render();
@@ -972,7 +984,7 @@ async function bootstrap(){
   event.preventDefault();const action=actions[target.dataset.action];if(action)try{await action(event,target)}catch(e){toast('Erreur : '+e.message)}
  });
  document.addEventListener('submit',onForm);
- document.addEventListener('input',e=>{if(e.target.id==='goal-minutes')refreshGoalPreview()});
+ document.addEventListener('input',e=>{if(e.target.id==='goal-minutes')refreshGoalPreview();if(e.target.id==='hw-duration')updateHomeworkPreview()});
  document.addEventListener('change',async e=>{if(e.target.id==='backup-import')await restoreBackup(e.target.files?.[0]);if(e.target.id==='hw-duration'){const x=Number(e.target.value);if(Number.isInteger(x)&&x>=1&&x<=480){homeworkDraft.estimate=x;homeworkDraft.manualEstimate=true;render();}}});
  setInterval(clockTick,1000);
  setInterval(checkLocalChallenges,15000);

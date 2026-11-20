@@ -34,8 +34,30 @@ async function main(){
  assert.equal(t.taskReward(screenshotTask,5,27,60,0).coins,15,'Faster action cannot exceed maximum coins');
  assert.equal(t.taskReward(screenshotTask,5,27,5*60,30).xp,40,'The one-minute start grace counts as on time');
  assert.ok(t.taskReward(screenshotTask,5,27,8*60,0).xp<40,'Missing the chosen personal goal must reduce the reward');
- assert.match(t.goalPreview(screenshotTask,5),/Termine en/,'Preview explains how to win maximum');
- assert.match(t.goalPreview(screenshotTask,5),/40 XP et 15 pièces|40 XP · 15/,'The exact attainable maximum appears in the preview');
+ const screen=t.goalPreview(screenshotTask,27);
+ assert.doesNotMatch(screen,/TON MAXIMUM AUJOURD.HUI|COMMENT GAGNER LE MAX|nm-winning-rule/,'Confusing maximum card must be removed');
+ assert.match(screen,/🎯 En 27 min/,'Selected goal is directly visible');
+ assert.match(screen,/⚡ En 13 min 30 s/,'Faster scenario follows selected goal');
+ assert.match(screen,/Après la limite de 27 min/,'Third scenario shows the hard limit, not a slower reward');
+ assert.match(screen,/0 XP · 0 🪙/,'Over-limit scenario earns nothing');
+ assert.equal((screen.match(/class="nm-scenario-row"/g)||[]).length,3,'Three compact scenarios for limited missions');
+ const rescaled=t.goalPreview(screenshotTask,5);
+ assert.match(rescaled,/🎯 En 5 min/);
+ assert.match(rescaled,/⚡ En 2 min 30 s/);
+ assert.doesNotMatch(rescaled,/Termine en 9 min|TON MAXIMUM/,'No fixed speed target from the parent reference is shown');
+ const punctualTask={...screenshotTask,time:'23:59'};
+ const punctualHtml=t.goalPreview(punctualTask,27);
+ const paid=t.taskReward(punctualTask,27,27,27*60,0);
+ const unpaid=t.taskReward(punctualTask,27,27,27*60,60);
+ assert.match(punctualHtml,new RegExp('Dont bonus ponctualité : \\+'+(paid.xp-unpaid.xp)+' XP'));
+ assert.match(punctualHtml,new RegExp('XP · \\+'+(paid.coins-unpaid.coins)+' 🪙'));
+ assert.equal((punctualHtml.match(/Dont bonus ponctualité/g)||[]).length,3,'Each scenario shows its own real punctuality bonus');
+ const lateTask={...screenshotTask,time:'00:00'};
+ const lateHtml=t.goalPreview(lateTask,27);
+ if(new Date().getHours()!==0||new Date().getMinutes()!==0){
+  assert.match(lateHtml,/Il est dépassé : pas de bonus de ponctualité/);
+  assert.doesNotMatch(lateHtml,/Dont bonus ponctualité/);
+ }
 
  const fast=t.taskReward(normal,10,15,60,0),slower=t.taskReward(normal,10,15,480,0);
  assert.ok(fast.xp>slower.xp,'Faster mission must earn more XP');

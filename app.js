@@ -395,19 +395,22 @@ function renderAdminSettings(){const rules=hwRules();return `${adminHeading('⚙
  <section class="card"><h2>Compte parent</h2><p class="small muted">Stockage local sur le téléphone de Mahé</p><div class="row wrap"><button class="btn" data-action="change-pin">Changer mon PIN</button><button class="btn" data-action="export">Exporter ma sauvegarde</button><button class="btn" data-action="import">Restaurer une sauvegarde</button><input id="backup-import" type="file" accept="application/json,.json" hidden>${connected?'<button class="btn danger" data-action="logout">Déconnexion Google</button>':''}</div></section>
  <section class="card" style="margin-top:14px"><h2>📱 Données sur cet appareil</h2><p class="small muted">Les missions, XP, récompenses et historiques restent sur ce Samsung. Exporter une sauvegarde est indispensable avant de changer de téléphone ou d'effacer les données de Chrome. Le PIN est une protection d'interface, pas un coffre-fort inviolable.</p><div id="pair-code"></div></section>
  <section class="card" style="margin-top:14px"><h2>Configuration générale</h2><div class="field"><label>Prénom</label><input id="child-name" value="${escape(data.config.childName||'Mahé')}" maxlength="30"></div><div class="field"><label>URL PRONOTE (facultatif)</label><input id="pronote-url" value="${escape(data.config.pronoteUrl||'')}" placeholder="https://..."></div><div class="field"><label>Niveau d’autonomie</label><select id="rank-mode"><option value="1" ${data.config.rankMode===1?'selected':''}>Guidé</option><option value="2" ${data.config.rankMode===2?'selected':''}>Semi-autonome</option><option value="3" ${data.config.rankMode===3?'selected':''}>Autonome</option></select></div><button class="btn primary" data-action="save-settings">Enregistrer</button></section>
- <section class="card" style="margin-top:14px"><h2>⏱️ Limites & récompenses</h2><form id="time-rules">
- ${field('Limite MAXIMALE par devoir (en minutes)','homeworkMaxPer','number',data.config.homeworkMaxPer??30,'min="5" max="120" required')}
- <p class="small muted">La limite d'un bloc = nombre de devoirs × cette durée, avec un plafond total de 240 minutes. Pour les autres missions, règle la limite individuellement dans l'éditeur des missions.</p>
- ${selectField('En cas de dépassement','overrunPolicy',[['none','Aucun XP ni pièce gagné'],['propose','Proposer une pénalité au parent (XP et pièces)']],data.config.overrunPolicy||'none')}
- <div class="form-grid">${field('XP à retirer si pénalité approuvée','overrunXp','number',data.config.overrunXp??5,'min="0" max="20" required')}${field('Pièces à retirer si pénalité approuvée','overrunCoins','number',data.config.overrunCoins??3,'min="0" max="20" required')}</div>
- <p class="small muted">Aucune pénalité n'est automatique. Toi seul peux la confirmer depuis le bilan parental. Les soldes ne deviennent jamais négatifs.</p>
- <button class="btn primary block" type="submit">Enregistrer les limites</button></form></section>
- <details class="card" style="margin-top:14px"><summary style="font-weight:850;cursor:pointer">📚 Récompenses des blocs de devoirs</summary><form id="hw-rules" style="margin-top:16px"><div class="form-grid">
- ${field('XP par devoir terminé','xpPer','number',rules.xpPer,'min="0" max="30" required')}
- ${field('Pièces par devoir terminé','coinsPer','number',rules.coinsPer,'min="0" max="20" required')}
- ${field('XP par jour d’avance et par devoir','advancePer','number',rules.advancePer,'min="0" max="6" required')}
- ${field('XP supplémentaires par devoir du bloc après le premier','volumePer','number',rules.volumePer,'min="0" max="10" required')}
- </div><p class="small muted">L’avance et le volume sont plafonnés. Plus Mahé termine vite avant la limite parentale, plus il gagne. Respecter son propre objectif apporte un bonus supplémentaire.</p><button class="btn primary block" type="submit">Enregistrer ce barème</button></form></details>
+
+ <section class="card" style="margin-top:14px"><h2>📚 Gains maximum par devoir</h2>
+ <form id="homework-caps">
+  <div class="form-grid">
+   ${field('XP MAXIMUM par devoir','homeworkXpMax','number',homeworkCaps().xp,'min="0" max="500" required')}
+   ${field('Pièces MAXIMUM par devoir','homeworkCoinsMax','number',homeworkCaps().coins,'min="0" max="500" required')}
+  </div>
+  <p class="small muted">Un devoir terminé tôt rapporte davantage. Le bonus dépend proportionnellement du nombre de jours d’avance, jusqu’à 14 jours. Même sans finir dans son objectif, Mahé peut gagner des points : il n’y a aucun seuil de temps pour les blocs.</p>
+  <button class="btn primary block" type="submit">Enregistrer les plafonds</button>
+ </form></section>
+ <details class="card" style="margin-top:14px"><summary style="font-weight:850;cursor:pointer">⌛ Conséquences d’un dépassement (missions limitées uniquement)</summary><form id="time-rules" style="margin-top:14px">
+ ${selectField('Au-delà de la limite parentale','overrunPolicy',[['none','0 gain, pas de pénalité'],['propose','0 gain + pénalité proposée au parent']],data.config.overrunPolicy||'none')}
+ <div class="form-grid">${field('XP à retirer après approbation','overrunXp','number',data.config.overrunXp??5,'min="0" max="20" required')}
+ ${field('Pièces à retirer après approbation','overrunCoins','number',data.config.overrunCoins??3,'min="0" max="20" required')}</div>
+ <p class="small muted">Aucune pénalité automatique. Les tâches sans limite, dont les blocs de devoirs, ne sont jamais concernées.</p>
+ <button class="btn primary block" type="submit">Enregistrer</button></form></details>
  <section class="card" style="margin-top:14px"><div class="row between"><h2 style="margin:0">📁 Catégories éditables</h2><button class="btn mini primary" data-action="category-add">+ Catégorie</button></div><div class="mission-list" style="margin-top:12px">${categoryList().map((c,i)=>`<div class="mission"><span class="time">${i+1}</span><div class="info"><strong>${escape(c)}</strong></div><button class="btn mini" data-action="category-edit" data-id="${i}">Modifier</button><button class="btn mini danger" data-action="category-delete" data-id="${i}">×</button></div>`).join('')}</div></section>
  <section class="card" style="margin-top:14px"><h2>🧹 Réinitialiser NEXT MOVE</h2><p class="small muted">Effacer les missions terminées, les devoirs, les XP, les pièces et les récompenses gagnées. Une remise à zéro complète peut aussi effacer toutes les tâches programmées.</p><button class="btn danger block" data-action="reset-open">Effacer et recommencer</button></section>
  <section class="card" style="margin-top:14px"><h2>🔔 Notifications</h2><p class="small muted">Mahé doit activer les notifications depuis son téléphone. Une seule notification-défi par mission, hors des plages silencieuses.</p><p class="small muted">Sans serveur, les rappels apparaissent uniquement lorsque NEXT MOVE est ouvert. Aucune notification garantie lorsque l’application est fermée.</p></section>`}
@@ -852,22 +855,20 @@ async function onForm(event){const form=event.target;if(!form.id)return;event.pr
   if(count===0)db.homeworkDates=db.homeworkDates.filter(x=>x.due!==due);else old.count=count;
   closeModal();hwPersist();
  }
- else if(form.id==='time-rules'){
+ else if(form.id==='homework-caps'){
   if(role!=='parent'||!pinUnlocked)throw Error('Accès parent requis');
-  const per=Number(get('homeworkMaxPer')),xp=Number(get('overrunXp')),coins=Number(get('overrunCoins'));
-  if(!Number.isInteger(per)||per<5||per>120||![xp,coins].every(v=>Number.isInteger(v)&&v>=0&&v<=20))throw Error('Valeurs invalides');
-  const policy=get('overrunPolicy');if(!['none','propose'].includes(policy))throw Error('Mode invalide');
-  const c=cloneConfig();Object.assign(c,{homeworkMaxPer:per,overrunPolicy:policy,overrunXp:xp,overrunCoins:coins});
+  const xp=Number(get('homeworkXpMax')),coins=Number(get('homeworkCoinsMax'));
+  if(![xp,coins].every(v=>Number.isInteger(v)&&v>=0&&v<=500))throw Error('Plafonds invalides');
+  const c=cloneConfig();c.homeworkXpMax=xp;c.homeworkCoinsMax=coins;
   await updateConfig(c);
  }
- else if(form.id==='hw-rules'){
+ else if(form.id==='time-rules'){
   if(role!=='parent'||!pinUnlocked)throw Error('Accès parent requis');
-  const c=cloneConfig(),rules={};
-  for(const [key,max] of [['xpPer',30],['coinsPer',20],['advancePer',6],['volumePer',10]]){
-   const value=Number(get(key));if(!Number.isInteger(value)||value<0||value>max)throw Error('Barème invalide');
-   rules[key]=value;
-  }
-  c.homeworkRules=rules;await updateConfig(c);
+  const xp=Number(get('overrunXp')),coins=Number(get('overrunCoins'));
+  if(![xp,coins].every(v=>Number.isInteger(v)&&v>=0&&v<=20))throw Error('Valeurs invalides');
+  const policy=get('overrunPolicy');if(!['none','propose'].includes(policy))throw Error('Mode invalide');
+  const c=cloneConfig();Object.assign(c,{overrunPolicy:policy,overrunXp:xp,overrunCoins:coins});
+  await updateConfig(c);
  }
  else if(form.id==='hw-finish'){
   const b=(db.homeworkBlocks||[]).find(x=>x.id===form.dataset.id);

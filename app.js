@@ -407,14 +407,15 @@ function renderShop(){
  return `<div class="row between" style="margin:10px 0 20px"><h2 style="margin:0">🎁 CADEAUX</h2><span class="pill gold">${data.wallet.coins} pièces</span></div>
  <section class="nm-exchange-panel"><h2>⚡ Convertir mes XP en pièces</h2>
  <p>⚡ <strong>${bank}</strong> XP disponibles · ${rate} XP = 1 pièce</p>
- <p class="small muted">Les XP déjà gagnés pour tes niveaux restent acquis.</p>
+ <p class="small muted">Les XP de progression et tes niveaux restent acquis.</p>
  <div class="nm-exchange-controls"><input id="nm-convert-amount" type="number" inputmode="numeric" min="1" max="${Math.min(1000,Math.max(1,available))}" value="1" aria-label="Nombre de pièces à convertir"><button class="btn primary" data-action="convert-xp" ${available<1?'disabled':''}>Convertir</button></div>
  <div class="nm-exchange-preview" id="nm-convert-preview">${rate} XP disponibles → 1 pièce</div>
  ${history.length?`<details><summary>Mes dernières conversions</summary>${history.map(x=>`<p class="small muted">−${x.xp} XP · +${x.coins} 🪙</p>`).join('')}</details>`:''}
  </section>
- <div class="stack">`;
-}${(data.config.rewards||[]).filter(r=>r.active!==false).map(r=>`<div class="reward"><span class="emoji">${escape(r.icon||'🎁')}</span><div class="info"><strong>${escape(r.name)}</strong><p>🎟️ ${r.cost} pièces · Approbation parentale</p></div><button class="btn mini primary" data-action="request-reward" data-id="${escape(r.id)}" ${data.wallet.coins<r.cost?'disabled':''}>Obtenir</button></div>`).join('')}
- <section class="card"><h2>📜 Mes demandes</h2>${(data.requests||[]).slice(0,12).map(r=>`<div class="mission"><span class="time">${r.cost}🪙</span><div class="info"><strong>${escape(data.config.rewards.find(x=>x.id===r.reward_id)?.name||'Récompense')}</strong><p>${r.status==='pending'?'⏳ En attente du parent':r.status==='approved'?'✅ Accordée':'❌ Non validée'}</p></div></div>`).join('')||'<p class="small muted">Aucune demande pour l’instant.</p>'}</section></div>`}
+ <div class="stack">
+ ${(data.config.rewards||[]).filter(r=>r.active!==false).map(r=>`<div class="reward"><span class="emoji">${escape(r.icon||'🎁')}</span><div class="info"><strong>${escape(r.name)}</strong><p>🎟️ ${r.cost} pièces · Approbation parentale</p></div><button class="btn mini primary" data-action="request-reward" data-id="${escape(r.id)}" ${data.wallet.coins<r.cost?'disabled':''}>Obtenir</button></div>`).join('')}
+ <section class="card"><h2>📜 Mes demandes</h2>${(data.requests||[]).slice(0,12).map(r=>`<div class="mission"><span class="time">${r.cost}🪙</span><div class="info"><strong>${escape(data.config.rewards.find(x=>x.id===r.reward_id)?.name||'Récompense')}</strong><p>${r.status==='pending'?'⏳ En attente du parent':r.status==='approved'?'✅ Accordée':'❌ Non validée'}</p></div></div>`).join('')||'<p class="small muted">Aucune demande pour l’instant.</p>'}</section></div>`;
+}
 function rankName(n){return n>=15?'Légende':n>=10?'Élite':n>=7?'Champion':n>=4?'Explorateur':'Recrue'}
 
 const LEVEL_REWARDS={

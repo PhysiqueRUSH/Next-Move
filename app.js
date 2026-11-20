@@ -279,7 +279,7 @@ function renderToday(){
   hero=`<section class="nm-mission-card">
    <div class="nm-eyebrow"><span class="nm-pulse"></span>${running?'DÉFI EN COURS':'TA PROCHAINE MISSION'}</div>
    <h1 class="nm-mission-title">${escape(mission.title)}</h1>
-   <div class="nm-mission-meta"><span>${category}</span><span class="dot">•</span><span>${escape(mission.time)}</span><span class="dot">•</span><span>${running?'Objectif '+mins+' min':'Limite '+parentLimit+' min'}</span></div>
+   <div class="nm-mission-meta"><span>${category}</span><span class="dot">•</span><span>${escape(mission.time)}</span><span class="dot">•</span><span>${running?'Objectif '+mins+' min · maximum '+parentLimit+' min':'Limite '+parentLimit+' min'}</span></div>
    <div class="nm-timer-stage">
      <div class="timer" id="timer-num" data-task="${escape(mission.id)}">${running?'--:--':pretty(mins*60)}</div>
      <div class="timer-caption" id="timer-caption">${running?'TEMPS RESTANT':'TEMPS POUR RÉUSSIR'}</div>
@@ -795,7 +795,7 @@ function checkLocalChallenges(){
 function clockTick(){const el=$('#timer-num');if(!el)return;const taskId=el.dataset.task,t=tasksFor(activeDay).find(x=>x.id===taskId),r=runFor(taskId,activeDay);if(!t||!r||r.status!=='running')return;
  const goal=Number(r.goal_minutes)||Number(t.minutes)||1;
  const remaining=goal*60-Math.floor((Date.now()-r.started_at)/1000);el.textContent=(remaining<0?'+':'')+pretty(remaining);el.classList.toggle('overtime',remaining<0);
- const cap=$('#timer-caption');if(cap)cap.textContent=remaining<0?'DÉPASSEMENT · MISSION TOUJOURS ACTIVE':'TEMPS RESTANT';const progress=$('#timer-progress');if(progress)progress.style.width=Math.min(100,Math.max(0,100*(1-remaining/(goal*60))))+'%';}
+ const cap=$('#timer-caption');if(cap)cap.textContent=(Date.now()-r.started_at)>(Number(r.max_minutes)||taskMaximum(t))*60000?'LIMITE PARENTALE DÉPASSÉE · AUCUN GAIN':remaining<0?'OBJECTIF DÉPASSÉ · CONTINUE':'TEMPS RESTANT';const progress=$('#timer-progress');if(progress)progress.style.width=Math.min(100,Math.max(0,100*(1-remaining/(goal*60))))+'%';}
 async function onForm(event){const form=event.target;if(!form.id)return;event.preventDefault();const f=new FormData(form),get=name=>String(f.get(name)||'').trim();try{
  if(form.id==='reset-form'){
   await performReset(get('mode'),get('pin'),get('phrase'));

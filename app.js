@@ -47,8 +47,11 @@ function defaultConfig(enable=false){return {
 };}
 const demoKey='nextmove_demo_v1'; // Conserver cette clé pour préserver les progrès existants
 let db=JSON.parse(localStorage.getItem(demoKey)||'null')||{config:defaultConfig(true),runs:[],ledger:[],wallet:{xp:0,coins:0},requests:[],homework:[],plans:[],role:'child'};
+db.homeworkDates=Array.isArray(db.homeworkDates)?db.homeworkDates:[];
+db.homeworkBlocks=Array.isArray(db.homeworkBlocks)?db.homeworkBlocks:[];
 const saveDemo=()=>localStorage.setItem(demoKey,JSON.stringify(db));
 let data={role:'child',config:defaultConfig(false),wallet:{xp:0,coins:0},runs:[],requests:[],homework:[],ledger:[],plans:[],paired:false};
+let homeworkDraft={items:{},estimate:20,manualEstimate:false};
 let auth=null,uid=null,role='child',tab='today',adminTab='stats',pinUnlocked=false,activeDay=dayNow(),selectedRecord=null,online=!!navigator.onLine,serviceWorker=null,initDone=false,renderVersion=0;
 const pinKey='nextmove_parent_pin_v1';
 const beep=(freq=620,time=.14)=>{if(localStorage.getItem('nm_mute')==='yes')return;try{const A=window.AudioContext||window.webkitAudioContext,a=new A(),o=a.createOscillator(),g=a.createGain();o.type='sine';o.frequency.value=freq;g.gain.setValueAtTime(.001,a.currentTime);g.gain.exponentialRampToValueAtTime(.06,a.currentTime+.018);g.gain.exponentialRampToValueAtTime(.001,a.currentTime+time);o.connect(g).connect(a.destination);o.start();o.stop(a.currentTime+time);setTimeout(()=>a.close(),500);}catch{}};
@@ -59,10 +62,54 @@ function celebration(title='NOUVEAU DÉFI ACCOMPLI !'){
  const box=document.createElement('div');box.className='confetti';for(let i=0;i<65;i++){const s=document.createElement('span');s.style.left=Math.random()*100+'%';s.style.background=['#3de9ef','#a07af8','#ffd772','#56e7b6'][i%4];s.style.animationDelay=Math.random()*.6+'s';s.style.transform=`rotate(${Math.random()*180}deg)`;box.appendChild(s);}document.body.appendChild(box);setTimeout(()=>box.remove(),3600);
 }
 function levelInfo(xp){let n=1;while(xp>=n*n*100)n++;const lo=(n-1)**2*100,hi=n*n*100;return {n,progress:Math.max(0,Math.min(100,100*(xp-lo)/(hi-lo))),current:xp-lo,needed:hi-lo};}
+
+/* Blocs de devoirs : quantité par date, travail anticipé et chrono sans pause. */
+function hwDateRows(){return (data.homeworkDates||[]).filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x.due)&&Number(x.count)>0).sort((a,b)=>a.due.localeCompare(b.due));}
+function hwDaysAhead(due,ref=dayNow()){return Math.round((Date.parse(due+'T12:00:00Z')-Date.parse(ref+'T12:00:00Z'))/86400000);}
+function hwDateText(due){return new Intl.DateTimeFormat('fr-FR',{weekday:'short',day:'numeric',month:'short'}).format(new Date(due+'T12:00:00Z'));}
+function hwSum(items){return items.reduce((sum,x)=>sum+Math.max(0,Number(x.count)||0),0);}
+function hwReward(items,minutesEstimate,seconds,ref=dayNow()){
+ const count=hwSum(items);
+ const advance=items.reduce((sum,x)=>sum+Math.max(0,Number(x.count)||0)*Math.min(14,Math.max(0,hwDaysAhead(x.due,ref))*2),0);
+ const fast=Number.isFinite(seconds)&&seconds<=minutesEstimate*60;
+ return {xp:Math.min(400,count*8+advance+(fast?Math.min(10,2+count*2):0)),
+         coins:Math.min(150,count*2+Math.floor(advance/2)+(fast?Math.min(5,1+count):0)),
+         count,advance,fast};
+}
+function hwReserved(due){
+ return (data.homeworkBlocks||[]).reduce((n,b)=>{
+  const r=runFor(b.id,b.day);
+  if(r&&['complete','rejected'].includes(r.status))return n;
+  return n+(b.items||[]).filter(x=>x.due===due).reduce((total,x)=>total+Number(x.count||0),0);
+ },0);
+}
+function hwAvailable(due){return Math.max(0,Number(hwDateRows().find(x=>x.due===due)?.count||0)-hwReserved(due));}
+function hwSelection(){return hwDateRows().map(x=>({due:x.due,count:Math.min(hwAvailable(x.due),Math.max(0,Number(homeworkDraft.items[x.due])||0))})).filter(x=>x.count>0);}
+function hwRefreshDraft(){
+ for(const key of Object.keys(homeworkDraft.items))homeworkDraft.items[key]=Math.min(hwAvailable(key),Math.max(0,Number(homeworkDraft.items[key])||0));
+ if(!homeworkDraft.manualEstimate)homeworkDraft.estimate=Math.max(5,Math.min(240,hwSum(hwSelection())*15||20));
+}
+function hwPersist(){saveDemo();data={...db};hwRefreshDraft();render();}
+function hwApplyCompleted(run){
+ if(run.homeworkApplied||!Array.isArray(run.homeworkActual))return;
+ for(const a of run.homeworkActual){
+  const item=(db.homeworkDates||[]).find(x=>x.due===a.due);
+  if(item)item.count=Math.max(0,Number(item.count||0)-Math.max(0,Number(a.count||0)));
+ }
+ db.homeworkDates=db.homeworkDates.filter(x=>Number(x.count)>0);
+ run.homeworkApplied=true;
+}
+function hwBlockTask(b){
+ const total=hwSum(b.items||[]);
+ return {id:b.id,title:'Bloc de '+total+' devoir'+(total>1?'s':''),category:2,time:b.time||'17:20',
+  minutes:Number(b.estimate)||20,priority:2,validation:b.validation||'self',homeworkBlock:true,items:b.items,enabled:true,carry:'keep'};
+}
+
 function modeFor(s){const periods=data.config.periods||[];return periods.find(x=>x.start<=s&&x.end>=s)?.mode||([0,6].includes(dayOf(s))?'weekend':'school')}
 function tasksFor(s){const m=modeFor(s),d=dayOf(s),ex=(data.config.exceptions||[]).filter(x=>x.day===s);
  const plan=JSON.parse((data.plans||[]).find(p=>p.day===s)?.plan_json||'{}');
- const ordinary=(data.config.tasks||[]).filter(t=>t.enabled!==false&&(t.days||[]).includes(d)&&(t.modes||[]).includes(m)&&!ex.some(x=>x.hideTaskId===t.id)).map(t=>{const change=ex.find(x=>x.taskId===t.id),alter=change?.changes||{},time=!t.locked&&t.priority!==1&&plan[t.id]?plan[t.id]:(alter.time||t.time);return {...t,...alter,time}});
+ const hasHomeworkBlock=(data.homeworkBlocks||[]).some(b=>b.day===s);
+ const ordinary=(data.config.tasks||[]).filter(t=>t.enabled!==false&&(t.days||[]).includes(d)&&(t.modes||[]).includes(m)&&!ex.some(x=>x.hideTaskId===t.id)&&!(t.id==='homework'&&hasHomeworkBlock)).map(t=>{const change=ex.find(x=>x.taskId===t.id),alter=change?.changes||{},time=!t.locked&&t.priority!==1&&plan[t.id]?plan[t.id]:(alter.time||t.time);return {...t,...alter,time,...(t.id==='homework'?{title:'Blocs de devoirs',homeworkLauncher:true}: {})}});
  const leftovers=[];
  for(const t of (data.config.tasks||[]).filter(t=>t.enabled!==false&&['carry','keep'].includes(t.carry)&&!ordinary.some(x=>x.id===t.id))){
   const limit=t.carry==='keep'?7:1;
@@ -74,7 +121,8 @@ function tasksFor(s){const m=modeFor(s),d=dayOf(s),ex=(data.config.exceptions||[
   }
  }
  const homework=(data.homework||[]).filter(h=>h.day===s).map(h=>({id:h.id,title:h.subject,category:2,time:'17:30',minutes:h.estimate,priority:2,validation:'parent',homework:true,description:h.details}));
- return [...ordinary,...leftovers,...homework].sort((a,b)=>a.time.localeCompare(b.time)||a.priority-b.priority);
+ const blocks=(data.homeworkBlocks||[]).filter(b=>b.day===s).map(hwBlockTask);
+ return [...ordinary,...leftovers.filter(x=>x.id!=='homework'),...homework,...blocks].sort((a,b)=>a.time.localeCompare(b.time)||a.priority-b.priority);
 }
 const runFor=(taskId,day=activeDay)=>data.runs.find(r=>r.task_id===taskId&&r.day===day);
 const isDone=r=>r&&['complete','pending_parent','rejected'].includes(r.status);
@@ -228,9 +276,37 @@ async function demoCall(path,method,body){let result={ok:true};
  }
  else if(path==='/run/finish'||path==='/run/offline'){
   const r=db.runs.find(r=>r.task_id===body.taskId&&r.day===body.day);
-  if(r&&r.status==='running'){const t=tasksFor(r.day).find(t=>t.id===r.task_id),duration=Math.floor((Date.now()-r.started_at)/1000),late=Math.max(0,Math.floor((r.started_at-r.planned_at)/1000)),fast=duration<=t.minutes*60;r.status=r.validation==='parent'?'pending_parent':'complete';r.finished_at=Date.now();r.elapsed_s=duration;r.late_s=late;r.xp=10+(fast?10:0)+(late===0?15:0);r.coins=5+(fast?3:0)+(late===0?5:0);if(r.status==='complete'){db.wallet.xp+=r.xp;db.wallet.coins+=r.coins;}result.points={xp:r.xp,coins:r.coins};result.status=r.status;}
+  if(r&&r.status==='running'){
+   const t=tasksFor(r.day).find(t=>t.id===r.task_id);
+   if(!t)throw Error('Mission introuvable');
+   const duration=Math.max(0,Math.floor((Date.now()-r.started_at)/1000));
+   const late=Math.max(0,Math.floor((r.started_at-r.planned_at)/1000)),fast=duration<=t.minutes*60;
+   if(t.homeworkBlock){
+    const b=db.homeworkBlocks.find(x=>x.id===t.id);
+    if(!b)throw Error('Bloc introuvable');
+    const actual=(b.items||[]).map(x=>{
+     const requested=body.actual?.find(y=>y.due===x.due);
+     const val=Number(requested?.count??x.count);
+     if(!Number.isInteger(val)||val<0||val>Number(x.count))throw Error('Nombre de devoirs invalide');
+     return {due:x.due,count:val};
+    }).filter(x=>x.count>0);
+    if(!hwSum(actual))throw Error('Indique au moins un devoir terminé');
+    const points=hwReward(actual,b.estimate,duration,r.day);
+    r.homeworkActual=actual;r.xp=points.xp;r.coins=points.coins;r.homeworkAdvance=points.advance;
+   }else{
+    r.xp=10+(fast?10:0)+(late===0?15:0);
+    r.coins=5+(fast?3:0)+(late===0?5:0);
+   }
+   r.status=r.validation==='parent'?'pending_parent':'complete';r.finished_at=Date.now();
+   r.elapsed_s=duration;r.late_s=late;
+   if(r.status==='complete'){db.wallet.xp+=r.xp;db.wallet.coins+=r.coins;if(t.homeworkBlock)hwApplyCompleted(r);}
+   result.points={xp:r.xp,coins:r.coins};result.status=r.status;
+  }
  }
- else if(path==='/run/approve'){const r=db.runs.find(x=>x.id===body.id&&x.status==='pending_parent');if(r){r.status=body.approve?'complete':'rejected';if(body.approve){db.wallet.xp+=r.xp;db.wallet.coins+=r.coins}}}
+ else if(path==='/run/approve'){
+  const r=db.runs.find(x=>x.id===body.id&&x.status==='pending_parent');
+  if(r){r.status=body.approve?'complete':'rejected';if(body.approve){db.wallet.xp+=r.xp;db.wallet.coins+=r.coins;if(r.homeworkActual)hwApplyCompleted(r)}}
+}
  else if(path==='/plan/set'){const i=db.plans.findIndex(x=>x.day===body.day);const plan={day:body.day,plan_json:JSON.stringify(body.plan)};if(i>=0)db.plans[i]=plan;else db.plans.push(plan)}
  else if(path==='/customize'){db.config[body.kind]=body.value}
  else if(path==='/homework'){const hw={id:'hw-'+rand(),parent_uid:'demo',subject:body.subject,estimate:body.estimate,day:body.day,details:body.details,due:body.due,done:0};db.homework.push(hw);result.id=hw.id;}

@@ -8,7 +8,7 @@ const pinHash=nodeCrypto.createHash('sha256').update('NEXT MOVE LOCAL PIN v1'+pi
 let source=fs.readFileSync('app.js','utf8');
 const end=/bootstrap\(\);\s*\}\)\(\);\s*$/;
 assert.match(source,end);
-source=source.replace(end,"globalThis.__test={db,task,dayNow,dayOf,taskReward,hwReward,homeworkCaps,taskMaximum,scheduleMode,taskHasLimit,goalPreview,levelInfo,levelCoins,applyLevelRewards,runFor,demoCall,resetState,renderToday,renderProfile,renderAdminSettings,renderAdminStats,renderHomework,renderPlanning,tasksFor,getActive,LEVEL_REWARDS,LEVEL_MILESTONES,setData:()=>{data={...db}},currentDb:()=>db};\n})();");
+source=source.replace(end,"globalThis.__test={db,task,dayNow,dayOf,taskReward,hwReward,homeworkCaps,taskMaximum,scheduleMode,taskHasLimit,goalPreview,levelInfo,levelCoins,applyLevelRewards,runFor,demoCall,resetState,renderToday,renderShop,renderProfile,renderAdminSettings,renderAdminStats,renderHomework,renderPlanning,tasksFor,getActive,LEVEL_REWARDS,LEVEL_MILESTONES,setData:()=>{data={...db}},currentDb:()=>db};\n})();");
 const storage=new Map();
 const localStorage={
  getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,String(v)),
@@ -73,6 +73,9 @@ async function main(){
  assert.equal(t.db.wallet.xp,0);
  await assert.rejects(t.demoCall('/run/approve','POST',{id:created.run.id,approve:true}),/code PIN/i);
  assert.equal(created.run.status,'pending_parent');
+ t.setData();
+ assert.match(t.renderToday(),/CHRONO ARRÊTÉ/,'Child sees frozen timer while pending parent approval');
+ assert.match(t.renderToday(),/FAIRE VALIDER PAR UN PARENT/);
  const elapsedBefore=created.run.elapsed_s,stoppedAt=created.run.finished_at;
  await assert.rejects(t.demoCall('/run/approve','POST',{id:created.run.id,approve:true,pin:'1111'}),/incorrect/i);
  assert.equal(created.run.elapsed_s,elapsedBefore,'Timer duration is frozen during approval');
@@ -133,6 +136,9 @@ async function main(){
  assert.equal(t.db.wallet.xpBank,availableBefore-20);
  assert.equal(t.db.wallet.coins,coinsBefore+1);
  assert.equal(t.db.exchanges.length,1);
+ t.setData();
+ assert.match(t.renderShop(),/Convertir mes XP en pièces/);
+ assert.match(t.renderShop(),/Mes dernières conversions/);
  await assert.rejects(t.demoCall('/xp/convert','POST',{coins:1000}),/XP disponibles/);
 
  assert.equal(t.LEVEL_REWARDS.avatar.length>=25,true,'Large avatar catalog');

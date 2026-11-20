@@ -76,11 +76,12 @@ function taskReward(t,goalMinutes,maxMinutes,seconds,late){
  const max=Math.max(1,Number(maxMinutes)||taskMaximum(t)),goal=clamp(Number(goalMinutes)||Number(t.minutes)||max,1,max);
  if(seconds>max*60)return {xp:0,coins:0,overrun:true,speed:0,goalReached:false};
  const speed=speedFactor(seconds,max),targetMet=goalReached(seconds,goal);
- const xp=Math.round(Number(t.xpBase??10)+Number(t.xpSpeed??20)*speed+
-  (targetMet?Math.max(2,Math.round(Number(t.xpSpeed??20)*.3)):0)+
+ const ambition=clamp(1-goal/max,0,1);
+ const goalXp=targetMet?Math.max(2,Math.round(Number(t.xpSpeed??20)*(.15+.30*ambition))):0;
+ const goalCoins=targetMet?Math.max(1,Math.round(Number(t.coinsSpeed??10)*(.15+.30*ambition))):0;
+ const xp=Math.round(Number(t.xpBase??10)+Number(t.xpSpeed??20)*speed+goalXp+
   (late===0?Number(t.xpInitiative??15):0));
- const coins=Math.round(Number(t.coinsBase??5)+Number(t.coinsSpeed??10)*speed+
-  (targetMet?Math.max(1,Math.round(Number(t.coinsSpeed??10)*.3)):0)+
+ const coins=Math.round(Number(t.coinsBase??5)+Number(t.coinsSpeed??10)*speed+goalCoins+
   (late===0?Number(t.coinsInitiative??5):0));
  return {xp:Math.max(0,xp),coins:Math.max(0,coins),overrun:false,speed,goalReached:targetMet};
 }
@@ -115,10 +116,13 @@ function hwReward(items,minutesEstimate,seconds,ref=dayNow(),parentMax){
  const volume=Math.min(36,Math.max(0,count-1)*Number(rules.volumePer));
  if(seconds>max*60)return {xp:0,coins:0,count,advance,volume,fast:false,speed:0,overrun:true};
  const speed=speedFactor(seconds,max),fast=goalReached(seconds,minutesEstimate);
+ const ambition=clamp(1-Number(minutesEstimate)/max,0,1);
  const speedXp=Math.round(Math.min(65,5+count*5)*speed);
  const speedCoins=Math.round(Math.min(40,2+count*3)*speed);
- return {xp:Math.min(400,Math.round(count*Number(rules.xpPer)+volume+advance+speedXp+(fast?Math.min(12,2+count*2):0))),
-         coins:Math.min(150,Math.round(count*Number(rules.coinsPer)+Math.min(12,Math.floor(Math.max(0,count-1)*1.5))+Math.floor(advance/2)+speedCoins+(fast?Math.min(8,1+count):0))),
+ const targetXp=fast?Math.round(Math.min(16,2+count*2)*(.45+ambition*.55)):0;
+ const targetCoins=fast?Math.max(1,Math.round(Math.min(10,1+count)*(.45+ambition*.55))):0;
+ return {xp:Math.min(400,Math.round(count*Number(rules.xpPer)+volume+advance+speedXp+targetXp)),
+         coins:Math.min(150,Math.round(count*Number(rules.coinsPer)+Math.min(12,Math.floor(Math.max(0,count-1)*1.5))+Math.floor(advance/2)+speedCoins+targetCoins)),
          count,advance,volume,fast,speed,overrun:false};
 }
 function hwReserved(due){

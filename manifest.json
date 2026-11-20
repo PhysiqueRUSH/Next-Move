@@ -1,0 +1,18 @@
+{
+  "id": "./",
+  "name": "NEXT MOVE — Missions et défis",
+  "short_name": "NEXT MOVE",
+  "description": "Prends les commandes de ta journée. Gagne tes niveaux.",
+  "lang": "fr-FR",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#090e1c",
+  "theme_color": "#090e1c",
+  "categories": ["education", "productivity", "lifestyle"],
+  "icons": [
+    {"src":"./icons/icon-192.png","sizes":"192x192","type":"image/png","purpose":"any maskable"},
+    {"src":"./icons/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}
+  ]
+}

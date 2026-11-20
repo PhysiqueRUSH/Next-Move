@@ -19,5 +19,9 @@ jobs:
           test -f manifest.json
           test -f ui.css
           test -f styles.css
+          test -f homework.css
+          grep -q 'homework.css' index.html
           grep -q 'ui.css' index.html
           ! grep -q 'MODE DÉMONSTRATION' app.js
+      - name: Verify homework block behaviour
+        run: node tests/homework.test.cjs

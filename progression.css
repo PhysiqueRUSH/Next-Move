@@ -1,0 +1,32 @@
+/* NEXT MOVE — objectifs chrono et progression en niveaux */
+.nm-goal-task{font-weight:900;font-size:20px;color:#f5faff;margin:12px 0 20px;text-align:center}
+.nm-goal-input{display:flex;align-items:center;justify-content:center;gap:12px;margin:15px 0}
+.nm-goal-input input{min-width:0;width:118px;text-align:center;font-weight:900;font-size:32px;color:#66f2f1;background:#111e32;border:1px solid #3a6987;border-radius:15px;padding:12px}
+.nm-goal-input .hw-compact-btn{width:52px;height:55px;font-size:26px}
+.nm-goal-maximum{font-weight:700;font-size:13px;text-align:center;color:#bcd0e4}
+.nm-goal-tip{padding:12px;background:#123b48;border:1px solid #2c8190;border-radius:14px;color:#b8f8f8;font-size:13px;text-align:center;margin:20px 0 10px}
+.hw-maximum{font-size:12px;font-weight:800;color:#a3b8d0;text-align:center;margin:4px 0}
+.nm-level-bonus{margin:12px auto 0;color:#ffdf95;font-weight:800}
+.level-reward-panel{margin:12px 0;border:1px solid #2f4667;border-radius:15px;background:#111f34;overflow:hidden}
+.level-reward-panel summary{padding:16px;cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-items:center;color:#eaf5ff;font-size:14px;font-weight:850;list-style:none}
+.level-reward-panel summary::-webkit-details-marker{display:none}
+.level-reward-panel summary span:last-child{font-size:12px;color:#85c9df;font-weight:700;white-space:nowrap}
+.level-reward-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:0 10px 12px}
+.level-reward-option{background:#1b2e49;border:1px solid #395576;border-radius:13px;min-height:102px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:9px 5px;color:#eef5ff;text-align:center;font:inherit;overflow-wrap:anywhere;cursor:pointer}
+.level-reward-option strong{font-size:12px}
+.level-reward-option small{font-size:10px;color:#acc5da}
+.level-reward-option:disabled{opacity:.42;cursor:default}
+.level-reward-option.selected{border-color:#60e6ec;box-shadow:inset 0 0 0 1px #60e6ec77,0 0 14px #44edf31c}
+.level-reward-icon{font-size:29px;line-height:1.15}
+.frame-plasma{box-shadow:0 0 22px #9e60ff,0 0 6px #f3aaff inset!important}
+.frame-ice{box-shadow:0 0 22px #89e8ff,0 0 8px #d3ffff inset!important}
+.frame-ember{box-shadow:0 0 22px #fb8850,0 0 8px #ffc172 inset!important}
+.frame-matrix{box-shadow:0 0 22px #5dffb7,0 0 6px #5aff89 inset!important}
+.frame-legendary{box-shadow:0 0 28px #ffd279,0 0 10px #ffe9b0 inset!important}
+.frame-cosmic{box-shadow:0 0 25px #a189ff,0 0 12px #66d5ff inset!important}
+.frame-royal{box-shadow:0 0 28px #dda2ff,0 0 10px #ffd4ff inset!important}
+.frame-storm{box-shadow:0 0 30px #6795ff,0 0 14px #e5f7ff inset!important}
+.frame-diamond{box-shadow:0 0 30px #3ef1dc,0 0 12px #baffff inset!important}
+.frame-gold{box-shadow:0 0 32px #ffd36b,0 0 14px #ffe9a1 inset!important}
+.frame-ultra{box-shadow:0 0 34px #ab68ff,0 0 21px #49f9ec inset!important}
+@media(min-width:540px){.level-reward-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}

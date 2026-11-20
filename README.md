@@ -37,3 +37,15 @@ Les fichiers historiques sous `cloudflare/` ne sont plus utilisés dans cette ve
 ## Confidentialité
 
 Ne pas ajouter de données privées ni de mots de passe dans le dépôt GitHub public. Les informations personnelles renseignées depuis l'application restent sur le téléphone, sous réserve du fonctionnement habituel du navigateur et d'éventuelles sauvegardes de l'appareil.
+
+## Blocs de devoirs (sans recopier PRONOTE)
+
+1. Sur le Samsung, ouvrir NEXT MOVE puis **📚 Mes devoirs** (depuis Mission ou Journée).
+2. Consulter PRONOTE, puis indiquer uniquement le **nombre de devoirs restants pour chaque date**. Les comptes peuvent être modifiés à tout moment.
+3. Dans **Mon bloc**, choisir combien de devoirs réaliser pour chacune de ces dates.
+4. Estimer le temps nécessaire (en minutes) et toucher **Je lance mon bloc**. Le compte à rebours n'est pas pausé.
+5. À la fin, confirmer la quantité **réellement terminée** pour chaque date. Les travaux non terminés restent dans le stock. Si le parent a activé l'approbation pour la mission de devoirs, les gains et le décompte définitif n'interviennent qu'après son accord.
+
+Les récompenses sont calculées selon le nombre terminé, l'avance sur la date de rendu et un bonus de respect du chrono. Un bonus de volume encourage les blocs cohérents plutôt que le découpage artificiel en petites missions. Le barème est éditable dans **Paramètres parentaux > Récompenses des blocs de devoirs**. Les plafonds évitent des gains excessifs. Les dates urgentes sont signalées.
+
+**PRONOTE n'est pas connecté automatiquement** : NEXT MOVE ne voit pas les consignes ni les devoirs exacts. Le compte déclaré par Mahé repose sur sa sincérité ; une vérification ponctuelle par le parent reste utile.

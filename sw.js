@@ -1,5 +1,5 @@
 /* NEXT MOVE · Hors ligne + Firebase Cloud Messaging, même SW pour toute la PWA. */
-const CACHE='next-move-v1.0.0';
+const CACHE='next-move-local-v1.1.0';
 const ASSETS=['./','./index.html','./styles.css','./app.js','./config.js','./manifest.json','./icons/icon-192.png','./icons/icon-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));});
 self.addEventListener('activate',e=>{e.waitUntil(Promise.all([caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))),self.clients.claim()]));});
@@ -16,21 +16,4 @@ self.addEventListener('fetch',e=>{
   return cached||online;
  }));
 });
-try{
- importScripts('./config.js');
- const c=self.NEXT_MOVE_CONFIG?.firebase;
- if(c?.apiKey && c?.projectId){
-  importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js');
-  importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js');
-  firebase.initializeApp(c);
-  firebase.messaging().onBackgroundMessage(payload=>{
-   const data=payload.data||{};
-   self.registration.showNotification(data.title||'NEXT MOVE ⚡',{body:data.body||'Un défi t’attend !',icon:'./icons/icon-192.png',badge:'./icons/icon-192.png',tag:'next-move-challenge',data:{url:data.url||'./index.html'},vibrate:[100,60,100]});
-  });
- }
-}catch(e){console.warn('FCM SW non activé',e);}
-self.addEventListener('notificationclick',event=>{
- event.notification.close();
- const url=new URL(event.notification.data?.url||'./index.html',self.location.href).href;
- event.waitUntil((async()=>{const tabs=await clients.matchAll({type:'window',includeUncontrolled:true});const existing=tabs.find(t=>t.url.startsWith(self.registration.scope));if(existing){await existing.focus();if(existing.navigate)await existing.navigate(url);}else await clients.openWindow(url);})());
-});
+/* Mode local : aucune notification push programmée lorsque l'application est fermée. */

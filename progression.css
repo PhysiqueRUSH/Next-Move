@@ -71,11 +71,3 @@
 .nm-penalty-choice input{min-width:20px;min-height:20px;accent-color:#ff8a8a}
 .nm-approval-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:17px 0}
 .nm-approval-actions button{min-height:56px;font-size:15px;font-weight:900}
-.nm-exchange-panel{border-radius:19px;border:1px solid #357889;background:linear-gradient(140deg,#193b49,#17223c);padding:19px 15px;margin-bottom:19px}
-.nm-exchange-panel h2{font-size:19px;margin:0 0 12px;color:#f2fdff}
-.nm-exchange-panel p{font-size:13px;color:#c7e5f0;line-height:1.5;margin:9px 0}
-.nm-exchange-controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:15px 0}
-.nm-exchange-controls input{border:1px solid #3b879a;border-radius:13px;background:#0f2235;color:#90f6ee;font-size:22px;font-weight:900;text-align:center;min-width:0;padding:11px}
-.nm-exchange-controls button{font-size:15px;font-weight:900}
-.nm-exchange-preview{color:#a9f4ec;font-size:13px;font-weight:850;text-align:center}
-.nm-exchange-panel details{margin-top:12px;font-size:12px;color:#bddcf0}

@@ -600,21 +600,45 @@ async function refresh(quiet=false){if(!initDone)return;try{const result=await c
 function storeCache(){if(connected){const safe={config:data.config,runs:data.runs,wallet:data.wallet,homework:data.homework,requests:data.requests,paired:data.paired};localStorage.setItem('nm_state_cache',JSON.stringify(safe))}}
 async function changeTab(which){if(role==='parent')adminTab=which;else {tab=which;if(which==='today')activeDay=dayNow();}render();window.scrollTo(0,0)}
 
+
+function taskProjectedLate(t){
+ return scheduleMode(t)==='fixed'&&minutes(localTime())>minutes(t.time)?60:0;
+}
+function goalPreview(t,goal){
+ const max=taskMaximum(t),limit=taskHasLimit(t),late=taskProjectedLate(t);
+ const caps=taskCaps(t);
+ const scenario=(seconds)=>taskReward(t,goal,max,seconds,late);
+ const onTarget=scenario(goal*60),quick=scenario(goal*30),slow=scenario(goal*120);
+ return `<div class="nm-scenario-list" aria-live="polite">
+  <div class="nm-scenario-row"><span>🎯 Dans ton objectif (${goal} min)</span><strong>${onTarget.xp} XP · ${onTarget.coins} 🪙</strong></div>
+  <div class="nm-scenario-row"><span>⚡ Deux fois plus vite</span><strong>${quick.xp} XP · ${quick.coins} 🪙</strong></div>
+  <div class="nm-scenario-row"><span>🐢 Deux fois plus lentement</span><strong>${slow.xp} XP · ${slow.coins} 🪙</strong></div>
+ </div>
+ <p class="nm-cap-note">Maximum pour cette mission : ${caps.xp} XP et ${caps.coins} pièces. ${limit?'Au-delà de '+max+' min : aucun gain.':'Aucune limite de temps.'}</p>`;
+}
+function refreshGoalPreview(){
+ const input=$('#goal-minutes'),box=$('#goal-preview');
+ if(!input||!box)return;
+ const t=tasksFor(dayNow()).find(x=>x.id===input.dataset.task),goal=Number(input.value);
+ if(!t||!Number.isInteger(goal)||goal<1||goal>480||taskHasLimit(t)&&goal>taskMaximum(t)){
+  box.textContent='Choisis un objectif valide.';return;
+ }
+ box.innerHTML=goalPreview(t,goal);
+}
 function modalStartTask(taskId){
  const t=tasksFor(activeDay).find(x=>x.id===taskId);
  if(!t)return toast('Mission introuvable');
- const max=taskMaximum(t),suggested=Math.min(max,Math.max(1,Number(t.minutes)||10));
+ const max=taskMaximum(t),limit=taskHasLimit(t),suggested=Math.min(limit?max:480,Math.max(1,Number(t.minutes)||10));
  openModal(`<h2>⏱️ Ton défi chrono</h2>
   <p class="nm-goal-task">${escape(t.title)}</p>
   <p class="small muted">Combien de minutes te donnes-tu ?</p>
   <form id="goal-form" data-id="${escape(taskId)}">
    <div class="nm-goal-input"><button type="button" class="hw-compact-btn" data-action="goal-minus">−</button>
-    <input id="goal-minutes" name="goal" type="number" min="1" max="${max}" value="${suggested}" inputmode="numeric" required aria-label="Mon objectif en minutes">
+    <input id="goal-minutes" data-task="${escape(taskId)}" name="goal" type="number" min="1" max="${limit?max:480}" value="${suggested}" inputmode="numeric" required>
     <button type="button" class="hw-compact-btn" data-action="goal-plus">+</button>
    </div>
-   <p class="nm-goal-maximum">Limite parent : ${max} min</p>
-   <div class="nm-goal-tip">⚡ Plus tu termines vite, plus tu gagnes de XP et de pièces.</div>
-   <button type="submit" class="btn primary block nm-one-action">▶ JE LANCE LE CHRONO</button>
+   <div id="goal-preview">${goalPreview(t,suggested)}</div>
+   <button type="submit" class="btn primary block nm-one-action">▶ JE COMMENCE !</button>
   </form>`);
 }
 async function startTask(taskId,goalMinutes){
@@ -625,7 +649,7 @@ async function startTask(taskId,goalMinutes){
  const old=runFor(taskId,day);if(old)return toast('Cette mission est déjà commencée.');
  if(goalMinutes===undefined){modalStartTask(taskId);return;}
  const max=taskMaximum(task);
- if(!Number.isInteger(goalMinutes)||goalMinutes<1||goalMinutes>max)return toast('Objectif hors limites.');
+ if(!Number.isInteger(goalMinutes)||goalMinutes<1||goalMinutes>480||(taskHasLimit(task)&&goalMinutes>max))return toast('Objectif hors limites.');
  try{const r=await call('/run/start','POST',{taskId,day,goalMinutes});if(!data.runs.some(x=>x.id===r.run.id))data.runs.unshift(r.run);render();beep(700,.1);toast('⚡ Chrono lancé, c’est parti !')}
 
  catch(e){if(!navigator.onLine){const obj={id:'offline-'+rand(),task_id:taskId,day,started_at:Date.now(),planned_at:Date.now(),status:'running',offline:true};data.runs.unshift(obj);localStorage.setItem('nm_offline_running',JSON.stringify(obj));render();toast('Hors ligne · chrono local actif. Validation parentale après synchronisation.')}else toast('Impossible de démarrer : '+e.message)}
@@ -717,8 +741,8 @@ const actions={
  'day-prev':()=>{activeDay=futureDate(activeDay,-1);render()},
  'day-next':()=>{activeDay=futureDate(activeDay,1);render()},
  'start':async(_,el)=>{tab='today';activeDay=dayNow();await startTask(el.dataset.id);window.scrollTo(0,0)},
- 'goal-minus':()=>{const input=$('#goal-minutes');if(input)input.value=Math.max(Number(input.min)||1,(Number(input.value)||1)-1)},
- 'goal-plus':()=>{const input=$('#goal-minutes');if(input)input.value=Math.min(Number(input.max)||240,(Number(input.value)||1)+1)},
+ 'goal-minus':()=>{const input=$('#goal-minutes');if(input){input.value=Math.max(Number(input.min)||1,(Number(input.value)||1)-1);refreshGoalPreview()}},
+ 'goal-plus':()=>{const input=$('#goal-minutes');if(input){input.value=Math.min(Number(input.max)||480,(Number(input.value)||1)+1);refreshGoalPreview()}},
  'finish':(_,el)=>finishTask(el.dataset.id),
  'toggle-sound':()=>{localStorage.setItem('nm_mute',localStorage.getItem('nm_mute')==='yes'?'no':'yes');render()},
  'parent-entry':async()=>{if(connected){await googleLogin()}else{role='parent';pinUnlocked=false;render()}},
@@ -864,7 +888,7 @@ async function onForm(event){const form=event.target;if(!form.id)return;event.pr
   const taskId=form.dataset.id,goal=Number(get('goal'));
   if(!Number.isInteger(goal))throw Error('Objectif invalide');
   const t=tasksFor(dayNow()).find(x=>x.id===taskId);
-  if(!t||goal<1||goal>taskMaximum(t))throw Error('Objectif supérieur à la limite parentale');
+  if(!t||goal<1||goal>480||(taskHasLimit(t)&&goal>taskMaximum(t)))throw Error('Objectif invalide');
   closeModal();tab='today';activeDay=dayNow();await startTask(taskId,goal);
  }
  else if(form.id==='hw-add-date'){
@@ -947,6 +971,7 @@ async function bootstrap(){
   event.preventDefault();const action=actions[target.dataset.action];if(action)try{await action(event,target)}catch(e){toast('Erreur : '+e.message)}
  });
  document.addEventListener('submit',onForm);
+ document.addEventListener('input',e=>{if(e.target.id==='goal-minutes')refreshGoalPreview()});
  document.addEventListener('change',async e=>{if(e.target.id==='backup-import')await restoreBackup(e.target.files?.[0]);if(e.target.id==='hw-duration'){const x=Number(e.target.value);if(Number.isInteger(x)&&x>=1&&x<=480){homeworkDraft.estimate=x;homeworkDraft.manualEstimate=true;render();}}});
  setInterval(clockTick,1000);
  setInterval(checkLocalChallenges,15000);

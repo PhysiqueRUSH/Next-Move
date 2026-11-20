@@ -382,7 +382,7 @@ function renderAdminStats(){const last7=data.runs.filter(r=>r.day>=futureDays(-6
 }
 function renderAdminTasks(){const tasks=data.config.tasks||[];return `${adminHeading('🎯 ÉDITEUR DE MISSIONS','Toutes les missions sont personnalisables : horaires, périodes, priorité, durée, validation, sous-étapes et notifications.')}
  <div class="row" style="margin:16px 0"><button class="btn primary" data-action="edit-task">+ Nouvelle mission</button><span class="pill cyan">${tasks.filter(t=>t.enabled).length} actives</span></div>
- <div class="mission-list">${tasks.map(t=>`<div class="mission"><span class="time">${t.enabled?'⚡':'⏸️'}<br>${t.time}</span><div class="info"><strong>${escape(t.title)}</strong><p>${escape(categoryList()[t.category]||'Mission')} · ${t.minutes} min · ${t.validation==='parent'?'Parent':'Autonome'}</p></div><button class="btn mini" data-action="edit-task" data-id="${escape(t.id)}">✎</button><button class="btn mini" data-action="duplicate-task" data-id="${escape(t.id)}">⧉</button></div>`).join('')}</div>`}
+ <div class="mission-list">${tasks.map(t=>`<div class="mission"><span class="time">${t.enabled?'⚡':'⏸️'}<br>${scheduleMode(t)==='fixed'?t.time:'Libre'}</span><div class="info"><strong>${escape(t.title)}</strong><p>${escape(categoryList()[t.category]||'Mission')} · ${scheduleMode(t)==='fixed'?'Fixe '+t.time:'Horaire libre'} · ${taskHasLimit(t)?'Limite '+taskMaximum(t)+' min':'Sans limite'} · ${taskCaps(t).xp} XP / ${taskCaps(t).coins} pièces max</p></div><button class="btn mini" data-action="edit-task" data-id="${escape(t.id)}">✎</button><button class="btn mini" data-action="duplicate-task" data-id="${escape(t.id)}">⧉</button></div>`).join('')}</div>`}
 function renderAdminCalendar(){return `${adminHeading('📅 CALENDRIER INTELLIGENT','Semaine, vacances, exceptions ponctuelles et plages de silence.')}
  <section class="card"><div class="row between"><h2 style="margin:0">Périodes personnalisées</h2><button class="btn mini primary" data-action="add-period">+ Période</button></div>${(data.config.periods||[]).map(p=>`<div class="mission"><span>📅</span><div class="info"><strong>${escape(p.name)}</strong><p>${p.start} → ${p.end} · ${escape(p.mode)}</p></div><button class="btn mini danger" data-action="del-period" data-id="${p.id}">×</button></div>`).join('')||'<p class="small muted">Mode école en semaine, week-end les autres jours. Ajoute tes vacances ou tes périodes spéciales.</p>'}</section>
  <section class="card" style="margin-top:14px"><div class="row between"><h2 style="margin:0">🔕 Plages silencieuses</h2><button class="btn mini primary" data-action="add-quiet">+ Silence</button></div>${(data.config.quiet||[]).map(q=>`<div class="mission"><span>🔕</span><div class="info"><strong>${q.start} → ${q.end}</strong><p>${(q.modes||[]).join(', ')} · ${(q.days||[]).map(x=>WEEK[x]).join(' ')}</p></div><button class="btn mini danger" data-action="del-quiet" data-id="${q.id}">×</button></div>`).join('')}</section>
@@ -420,14 +420,37 @@ function dayChecks(days=[1,2,3,4,5]){return `<div class="checks">${WEEK.map((d,i
 function modeChecks(modes=['school']){return `<div class="checks">${[['school','École'],['weekend','Week-end'],['vacation','Vacances']].map(([val,label])=>`<label class="check"><input type="checkbox" name="modes" value="${val}" ${modes.includes(val)?'checked':''}>${label}</label>`).join('')}</div>`}
 function field(label,name,type='text',value='',other=''){return `<div class="field"><label for="f-${name}">${label}</label><input id="f-${name}" name="${name}" type="${type}" value="${escape(value)}" ${other}></div>`}
 function selectField(label,name,options,val){return `<div class="field"><label for="f-${name}">${label}</label><select id="f-${name}" name="${name}">${options.map(([v,l])=>`<option value="${escape(v)}" ${String(val)===String(v)?'selected':''}>${escape(l)}</option>`).join('')}</select></div>`}
-function taskModal(identifier){const t=data.config.tasks.find(t=>t.id===identifier)||task('', '',0,'17:20',15,[1,2,3,4,5],{enabled:true,modes:['school','weekend','vacation']});
- openModal(`<h2>🎯 ${identifier?'Modifier':'Créer'} une mission</h2><form id="task-form" data-id="${escape(identifier||'')}">
- ${field('Nom de la mission','title','text',t.title,'required maxlength="80"')}<div class="form-grid">${selectField('Catégorie','category',categoryList().map((x,i)=>[i,x]),t.category)}${field('Début prévu','time','time',t.time,'required')}${field('Durée suggérée à Mahé (min)','minutes','number',t.minutes,'min="1" max="240" required')}${field('Limite MAXIMALE (minutes) fixée par le parent','maxMinutes','number',taskMaximum(t),'min="1" max="240" required')}${field('Échéance limite (facultative)','deadline','time',t.deadline||'')}${selectField('Priorité','priority',[[1,'1 · Obligatoire'],[2,'2 · Important'],[3,'3 · Flexible']],t.priority)}${selectField('Validation','validation',[['self','Autovalidation'],['parent','Approbation parentale']],t.validation)}${selectField('Non terminée','carry',[['expire','Expire'],['carry','Reporter'],['keep','Conserver jusqu’au bout']],t.carry)}</div>
- <div class="divider"></div><h3>Barème personnalisable</h3><div class="form-grid">${field('XP mission','xpBase','number',t.xpBase??10,'min="0" max="100"')}${field('XP rapidité','xpSpeed','number',t.xpSpeed??10,'min="0" max="100"')}${field('XP initiative','xpInitiative','number',t.xpInitiative??15,'min="0" max="100"')}${field('Pièces mission','coinsBase','number',t.coinsBase??5,'min="0" max="50"')}${field('Pièces rapidité','coinsSpeed','number',t.coinsSpeed??3,'min="0" max="50"')}${field('Pièces initiative','coinsInitiative','number',t.coinsInitiative??5,'min="0" max="50"')}</div><div class="field"><label>Jours actifs</label>${dayChecks(t.days||[])}</div><div class="field"><label>Types de journée</label>${modeChecks(t.modes||[])}</div>
- <div class="field"><label>Sous-étapes (une par ligne)</label><textarea name="steps" placeholder="Exemple : Préparer la trousse">${escape((t.steps||[]).join('\n'))}</textarea></div>
- <div class="checks"><label class="check"><input type="checkbox" name="enabled" ${t.enabled?'checked':''}>Mission active</label><label class="check"><input type="checkbox" name="notify" ${t.notify?'checked':''}>Rappel-défi dans l’application</label><label class="check"><input type="checkbox" name="locked" ${t.locked?'checked':''}>Horaire non déplaçable</label></div>
- <div class="form-actions"><button type="button" class="btn" data-action="close-modal">Annuler</button><button type="submit" class="btn primary">Enregistrer</button></div></form>${identifier?`<div class="divider"></div><button class="btn mini danger" data-action="delete-task" data-id="${escape(identifier)}">Supprimer cette mission</button>`:''}`);
+
+function taskModal(identifier){
+ const t=data.config.tasks.find(x=>x.id===identifier)||task('', '',0,'17:20',15,[1,2,3,4,5],{enabled:true,modes:['school','weekend','vacation']});
+ const caps=taskCaps(t);
+ openModal(`<h2>🎯 ${identifier?'Modifier':'Créer'} une mission</h2>
+  <form id="task-form" data-id="${escape(identifier||'')}">
+   ${field('Nom de la mission','title','text',t.title,'required maxlength="80"')}
+   <div class="form-grid">
+    ${selectField('Catégorie','category',categoryList().map((x,i)=>[i,x]),t.category)}
+    ${selectField('Organisation','scheduleMode',[['fixed','🕒 À horaire fixe'],['flexible','⚡ N’importe quand dans la journée']],scheduleMode(t))}
+    ${field('Heure fixe (si choisie)','time','time',t.time,'required')}
+    ${field('Durée suggérée (min)','minutes','number',t.minutes,'min="1" max="480" required')}
+    ${selectField('Limite de temps','hasTimeLimit',[['yes','⏳ Avec limite'],['no','♾️ Sans limite']],taskHasLimit(t)?'yes':'no')}
+    ${field('Temps limite (min), si activé','maxMinutes','number',taskMaximum(t),'min="1" max="240" required')}
+    ${field('XP MAXIMUM gagnables','xpMax','number',caps.xp,'min="0" max="500" required')}
+    ${field('Pièces MAXIMUM gagnables','coinsMax','number',caps.coins,'min="0" max="500" required')}
+    ${field('Échéance facultative','deadline','time',t.deadline||'')}
+    ${selectField('Priorité','priority',[[1,'1 · Obligatoire'],[2,'2 · Important'],[3,'3 · Flexible']],t.priority)}
+    ${selectField('Validation','validation',[['self','Autovalidation'],['parent','Approbation parentale']],t.validation)}
+    ${selectField('Si non terminée','carry',[['expire','Expire'],['carry','Reporter'],['keep','Conserver']],t.carry)}
+   </div>
+   <p class="helper">Le plafond XP / pièces n'est pas une récompense fixe : les gains augmentent progressivement si la mission est réalisée plus vite. Les horaires libres n'ont pas de retard au démarrage.</p>
+   <div class="field"><label>Jours actifs</label>${dayChecks(t.days||[])}</div>
+   <div class="field"><label>Types de journée</label>${modeChecks(t.modes||[])}</div>
+   <div class="field"><label>Étapes (une par ligne)</label><textarea name="steps">${escape((t.steps||[]).join('\n'))}</textarea></div>
+   <div class="checks"><label class="check"><input type="checkbox" name="enabled" ${t.enabled?'checked':''}>Active</label><label class="check"><input type="checkbox" name="notify" ${t.notify?'checked':''}>Notification-défi (seulement à heure fixe)</label></div>
+   <div class="form-actions"><button type="button" class="btn" data-action="close-modal">Annuler</button><button type="submit" class="btn primary">Enregistrer</button></div>
+  </form>
+  ${identifier?`<div class="divider"></div><button class="btn mini danger" data-action="delete-task" data-id="${escape(identifier)}">Supprimer cette mission</button>`:''}`);
 }
+
 function rewardModal(identifier){const r=data.config.rewards.find(r=>r.id===identifier)||{name:'',cost:100,icon:'🎁',active:true};openModal(`<h2>🪙 Récompense</h2><form id="reward-form" data-id="${escape(identifier||'')}">${field('Nom','name','text',r.name,'required maxlength="100"')}${field('Emoji','icon','text',r.icon,'maxlength="8"')}${field('Prix en pièces','cost','number',r.cost,'min="1" max="10000" required')}<label class="check"><input type="checkbox" name="active" ${r.active!==false?'checked':''}>Récompense disponible</label><div class="form-actions"><button type="button" class="btn" data-action="close-modal">Annuler</button><button class="btn primary" type="submit">Enregistrer</button></div></form>`)}
 async function updateConfig(next){if(role!=='parent')return toast('Accès parent requis');const old=data.config;data.config=next;render();try{if(connected)await call('/config','PUT',next);else{db.config=next;saveDemo()};toast('✅ Paramètres enregistrés')}catch(e){data.config=old;render();toast('Erreur : '+e.message)}}
 function cloneConfig(){return JSON.parse(JSON.stringify(data.config))}
@@ -862,10 +885,23 @@ async function onForm(event){const form=event.target;if(!form.id)return;event.pr
   else celebration('Bloc validé · +'+result.points.xp+' XP'+(result.levelCoins?' · +'+result.levelCoins+' pièces de niveau':''));
  }
  else if(form.id==='category-form'){const c=cloneConfig(),name=get('categoryName');if(!name)throw Error('Nom manquant');if(!Array.isArray(c.categories))c.categories=[...CATEGORY];const idx=form.dataset.id;if(idx===''){if(c.categories.length>=20)throw Error('Maximum 20 catégories');c.categories.push(name)}else c.categories[Number(idx)]=name;closeModal();await updateConfig(c)}
- else if(form.id==='task-form'){const c=cloneConfig(),identifier=form.dataset.id||rand(),old=c.tasks.find(x=>x.id===identifier)||{};
-  const t={...old,id:identifier,title:get('title'),category:Number(get('category')),time:get('time'),minutes:Number(get('minutes')),maxMinutes:Number(get('maxMinutes')),priority:Number(get('priority')),validation:get('validation'),carry:get('carry'),days:f.getAll('days').map(Number),modes:f.getAll('modes'),steps:get('steps').split('\n').map(x=>x.trim()).filter(Boolean),enabled:f.has('enabled'),notify:f.has('notify'),locked:f.has('locked'),deadline:get('deadline'),xpBase:Number(get('xpBase')),xpSpeed:Number(get('xpSpeed')),xpInitiative:Number(get('xpInitiative')),coinsBase:Number(get('coinsBase')),coinsSpeed:Number(get('coinsSpeed')),coinsInitiative:Number(get('coinsInitiative'))};
+ else if(form.id==='task-form'){
+  if(role!=='parent'||!pinUnlocked)throw Error('Accès parent requis');
+  const c=cloneConfig(),identifier=form.dataset.id||rand(),old=c.tasks.find(x=>x.id===identifier)||{};
+  const minutesValue=Number(get('minutes')),max=Number(get('maxMinutes')),limit=get('hasTimeLimit')==='yes',mode=get('scheduleMode');
+  const xp=Number(get('xpMax')),coins=Number(get('coinsMax'));
+  if(!['fixed','flexible'].includes(mode)||!['yes','no'].includes(get('hasTimeLimit')))throw Error('Mode invalide');
+  if(!Number.isInteger(minutesValue)||minutesValue<1||minutesValue>480)throw Error('Durée suggérée invalide');
+  if(!Number.isInteger(max)||max<1||max>240||limit&&minutesValue>max)throw Error('Vérifie la limite de temps');
+  if(![xp,coins].every(n=>Number.isInteger(n)&&n>=0&&n<=500))throw Error('Plafonds de gains invalides');
+  const t={...old,id:identifier,title:get('title'),category:Number(get('category')),
+   time:get('time'),minutes:minutesValue,maxMinutes:max,hasTimeLimit:limit,scheduleMode:mode,locked:mode==='fixed',
+   xpMax:xp,coinsMax:coins,priority:Number(get('priority')),validation:get('validation'),carry:get('carry'),
+   days:f.getAll('days').map(Number),modes:f.getAll('modes'),steps:get('steps').split('\n').map(x=>x.trim()).filter(Boolean),
+   enabled:f.has('enabled'),notify:f.has('notify')&&mode==='fixed',deadline:get('deadline')};
   if(!t.title||!t.days.length||!t.modes.length)throw Error('Nom, jours et périodes obligatoires');
-  if(!Number.isInteger(t.maxMinutes)||t.maxMinutes<1||t.maxMinutes>240||!Number.isInteger(t.minutes)||t.minutes<1||t.minutes>t.maxMinutes)throw Error('La durée suggérée doit être inférieure ou égale au maximum parental.');c.tasks=c.tasks.filter(x=>x.id!==identifier);c.tasks.push(t);closeModal();await updateConfig(c)}
+  c.tasks=c.tasks.filter(x=>x.id!==identifier);c.tasks.push(t);closeModal();await updateConfig(c);
+ }
  else if(form.id==='reward-form'){const c=cloneConfig(),identifier=form.dataset.id||rand(),old=c.rewards.find(x=>x.id===identifier)||{};c.rewards=c.rewards.filter(x=>x.id!==identifier);c.rewards.push({...old,id:identifier,name:get('name'),icon:get('icon'),cost:Number(get('cost')),active:f.has('active')});closeModal();await updateConfig(c)}
  else if(form.id==='homework-form'){const body={subject:get('subject'),day:get('day'),due:get('day'),estimate:Number(get('estimate')),details:get('details')};await call('/homework','POST',body);closeModal();await refresh(true);toast('Matière ajoutée au planning')}
  else if(form.id==='period-form'){const c=cloneConfig();if(get('end')<get('start'))throw Error('Dates inversées');c.periods.push({id:rand(),name:get('name'),start:get('start'),end:get('end'),mode:get('mode')});closeModal();await updateConfig(c)}

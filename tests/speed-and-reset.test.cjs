@@ -69,8 +69,11 @@ async function main(){
  created.run.started_at=Date.now()-2*60*1000;
  created.run.planned_at=created.run.started_at;
  const finish=await t.demoCall('/run/finish','POST',{taskId:'speed-test',day});
- assert.equal(finish.status,'complete');
- assert.ok(finish.points.xp>0);
+ assert.equal(finish.status,'pending_parent');
+ assert.equal(t.db.wallet.xp,0);
+ const approved=await t.demoCall('/run/approve','POST',{id:created.run.id,approve:true,pin});
+ assert.equal(approved.status,'complete');
+ assert.ok(t.db.wallet.xp>0);
  assert.ok(finish.points.xp<=45&&finish.points.coins<=15,'Later cap changes cannot affect a started run');
  normal.xpMax=45;normal.coinsMax=15;t.setData();
 

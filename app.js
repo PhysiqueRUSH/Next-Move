@@ -327,7 +327,7 @@ function renderMissionList(list,day){
   const done=['complete','pending_parent'].includes(status);
   const label=status==='complete'?'✅':status==='pending_parent'?'⏳':status==='running'?'⏱️':status==='rejected'?'↻':'';
   const canStart=day===dayNow()&&!r&&!someoneRunning;
-  return `<div class="mission ${done?'completed':''}"><span class="time">${scheduleMode(t)==='fixed'?escape(t.time):'⚡'}</span><div class="info"><strong>${escape(t.title)}</strong><p>${scheduleMode(t)==='fixed'?'Heure fixe':'À faire quand tu veux'} · ${taskHasLimit(t)?'Limite '+taskMaximum(t)+' min':'Sans limite'}${status='running'?' · En cours':status==='pending_parent'?' · À valider':status==='complete'?' · Terminé':t.carriedFrom?' · À rattraper':''}</p></div>${canStart?`<button class="btn mini primary nm-list-action" data-action="start" data-id="${escape(t.id)}">▶</button>`:`<span class="state">${label||'○'}</span>`}</div>`;
+  return `<div class="mission ${done?'completed':''}"><span class="time">${scheduleMode(t)==='fixed'?escape(t.time):'⚡'}</span><div class="info"><strong>${escape(t.title)}</strong><p>${scheduleMode(t)==='fixed'?'Heure fixe':'À faire quand tu veux'} · ${taskHasLimit(t)?'Limite '+taskMaximum(t)+' min':'Sans limite'}${status==='running'?' · En cours':status==='pending_parent'?' · À valider':status==='complete'?' · Terminé':t.carriedFrom?' · À rattraper':''}</p></div>${canStart?`<button class="btn mini primary nm-list-action" data-action="start" data-id="${escape(t.id)}">▶</button>`:`<span class="state">${label||'○'}</span>`}</div>`;
  }).join(''):'<div class="empty">Aucun défi ce jour-là.</div>'}</div>`;
 }
 

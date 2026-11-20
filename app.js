@@ -72,9 +72,10 @@ function hwReward(items,minutesEstimate,seconds,ref=dayNow()){
  const count=hwSum(items);
  const advance=items.reduce((sum,x)=>sum+Math.max(0,Number(x.count)||0)*Math.min(14,Math.max(0,hwDaysAhead(x.due,ref))*2),0);
  const fast=Number.isFinite(seconds)&&seconds<=minutesEstimate*60;
- return {xp:Math.min(400,count*8+advance+(fast?Math.min(10,2+count*2):0)),
-         coins:Math.min(150,count*2+Math.floor(advance/2)+(fast?Math.min(5,1+count):0)),
-         count,advance,fast};
+ const volume=Math.min(36,Math.max(0,count-1)*3);
+ return {xp:Math.min(400,count*8+volume+advance+(fast?Math.min(10,2+count*2):0)),
+         coins:Math.min(150,count*2+Math.min(12,Math.floor(Math.max(0,count-1)*1.5))+Math.floor(advance/2)+(fast?Math.min(5,1+count):0)),
+         count,advance,volume,fast};
 }
 function hwReserved(due){
  return (data.homeworkBlocks||[]).reduce((n,b)=>{
@@ -149,6 +150,8 @@ function renderHomework(){
  hwRefreshDraft();
  const dates=hwDateRows(),selected=hwSelection(),total=hwSum(selected);
  const reward=hwReward(selected,homeworkDraft.estimate,homeworkDraft.estimate*60);
+ const urgent=dates.filter(x=>hwDaysAhead(x.due)<=1&&hwAvailable(x.due)>0);
+ const urgentUnselected=urgent.some(x=>(homeworkDraft.items[x.due]||0)===0);
  const running=(data.homeworkBlocks||[]).find(b=>runFor(b.id,b.day)?.status==='running');
  const dateCards=dates.map(row=>{
   const available=hwAvailable(row.due),ahead=hwDaysAhead(row.due);
@@ -184,6 +187,7 @@ function renderHomework(){
    <div class="hw-counter"><button class="hw-compact-btn" data-action="hw-estimate-minus" aria-label="Cinq minutes de moins">−</button>
     <input id="hw-duration" type="number" min="5" max="240" step="5" inputmode="numeric" value="${homeworkDraft.estimate}" aria-label="Durée estimée en minutes">
     <button class="hw-compact-btn" data-action="hw-estimate-plus" aria-label="Cinq minutes de plus">+</button></div></div>
+  ${urgentUnselected?'<div class="hw-urgent">⚠️ Pense aux devoirs à rendre bientôt !</div>':''}
   <div class="hw-reward-preview">🏆 ${reward.xp} XP possibles <span>🪙 ${reward.coins} pièces</span></div>
   <button class="btn primary block hw-launch" data-action="hw-start" ${total===0?'disabled':''}>▶ JE LANCE MON BLOC</button>
   <small class="hw-small">Bonus si tu respectes ton chrono. Aucun gain pour un devoir non terminé.</small>`}

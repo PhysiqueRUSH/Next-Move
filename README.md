@@ -63,11 +63,18 @@ Dans **⚙️ Paramètres parentaux > Missions > Modifier** :
 
 Un horaire fixe est un horaire planifié, pris en compte pour les rappels et la mesure de réactivité. Mahé peut commencer en avance ; la mission ne se déplace pas automatiquement. Les tâches libres apparaissent dans une zone dédiée de la journée.
 
-### Récompenses visibles avant de commencer
+### Récompenses lisibles et réellement atteignables
 
-Avant le démarrage de chaque mission, Mahé choisit son **objectif de temps en minutes**. L'écran calcule instantanément les XP et les pièces pour trois scénarios : fin **dans l'objectif**, **deux fois plus vite** et **deux fois plus lentement**. Le calcul réel est continu : plus c'est rapide, plus les gains sont élevés. Un bonus est accordé pour un objectif respecté et, sur les tâches fixes, un démarrage sans retard. Aucun résultat ne dépasse les plafonds configurés.
+Pour chaque mission, le maximum d'XP et de pièces est un montant **atteignable** :
+- Le parent définit le **plafond XP** et le **plafond pièces**, et une **durée suggérée** (référence de rapidité).
+- Pour obtenir toute la part de rapidité, terminer en **au plus la moitié de cette durée suggérée**. Faire encore plus vite ne dépasse jamais le plafond.
+- Mahé fixe un objectif personnel avant le démarrage. Pour toucher le maximum, il faut **à la fois** finir dans cet objectif et atteindre le seuil de rapidité. Le délai nécessaire au maximum est donc le plus petit de ces deux temps.
+- Les tâches libres n'ont aucun retard au démarrage. Les tâches fixes réservent 10 % du barème à un départ à l'heure (dans la minute planifiée, tolérance inférieure à 60 secondes). Si Mahé démarre en retard, l'écran affiche le maximum **réellement accessible aujourd'hui**, inférieur au plafond théorique, et explique pourquoi.
+- Les gains suivent désormais une échelle bornée : **25 % pour la réalisation**, **55 % pour la rapidité**, **10 % pour l'objectif tenu**, **10 % pour la ponctualité** (automatiquement accordée aux tâches libres). Si une tâche avec limite dépasse la durée maximale, elle rapporte zéro, avec pénalité éventuelle seulement après décision parentale.
 
-Le calcul est enregistré au lancement, avec les plafonds applicables à ce moment-là. L'objectif ne peut pas être changé une fois le chrono lancé.
+**Exemple « Habillage + dents » :** durée suggérée 18 min, objectif choisi 5 min, plafond parental 40 XP / 15 pièces. S'il commence à l'heure et termine en 5 min ou moins, il obtient exactement **40 XP et 15 pièces**. S'il commence en retard, le même chrono rapporte au maximum **36 XP et 14 pièces** : le bonus de ponctualité est perdu. Ce maximum du jour est affiché sur l'écran de lancement et l'accueil.
+
+L'écran de lancement indique en priorité **« Comment gagner le maximum »**, les montants exacts et la durée requise. Il ne montre des scénarios alternatifs que s'ils apportent une information différente. Le barème et les plafonds sont enregistrés au départ de la mission : un changement ultérieur des paramètres ne modifie pas les gains en cours.
 
 ### Blocs de devoirs sans seuil maximal
 
@@ -75,7 +82,7 @@ Le calcul est enregistré au lancement, avec les plafonds applicables à ce mome
 
 Dans **⚙️ Paramètres parentaux > Réglages > Gains maximum par devoir** :
 - Choisir **XP maximum par devoir terminé** et **Pièces maximum par devoir terminé**.
-- Le plafond total du bloc est **nombre de devoirs réellement terminés × plafond par devoir**.
+- Le plafond total du bloc est **nombre de devoirs réellement terminés × plafond par devoir**. Pour éviter d'annoncer un plafond inatteignable, l'écran indique également le **maximum réellement possible avec les dates choisies**, atteint à la moitié du temps estimé ou moins. La bonification liée à chaque échéance peut rendre le gain réel inférieur au plafond théorique, ce qui est indiqué séparément.
 - Pour chaque date de rendu, un bonus de progression dépend **du nombre de jours d'avance** (jusqu'à 14 jours), et se cumule avec l'effet de la vitesse à l'intérieur du plafond.
 - Le bonus de volume favorise aussi un bloc regroupant plusieurs devoirs, sans jamais dépasser les plafonds.
 - Le chrono continue sans pause ; aucun seuil parental ne peut supprimer les gains des devoirs pour cause de lenteur.

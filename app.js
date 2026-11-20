@@ -330,14 +330,18 @@ function renderMissionList(list,day){
   return `<div class="mission ${done?'completed':''}"><span class="time">${scheduleMode(t)==='fixed'?escape(t.time):'⚡'}</span><div class="info"><strong>${escape(t.title)}</strong><p>${scheduleMode(t)==='fixed'?'Heure fixe':'À faire quand tu veux'} · ${taskHasLimit(t)?'Limite '+taskMaximum(t)+' min':'Sans limite'}${status='running'?' · En cours':status==='pending_parent'?' · À valider':status==='complete'?' · Terminé':t.carriedFrom?' · À rattraper':''}</p></div>${canStart?`<button class="btn mini primary nm-list-action" data-action="start" data-id="${escape(t.id)}">▶</button>`:`<span class="state">${label||'○'}</span>`}</div>`;
  }).join(''):'<div class="empty">Aucun défi ce jour-là.</div>'}</div>`;
 }
+
 function renderPlanning(){
- const list=tasksFor(activeDay);
+ const list=tasksFor(activeDay),fixed=list.filter(t=>scheduleMode(t)==='fixed'),flex=list.filter(t=>scheduleMode(t)==='flexible');
  return `<h1 class="nm-page-title">📅 Ma journée</h1>
  <div class="nm-day-picker"><button class="btn mini" data-action="day-prev" aria-label="Jour précédent">‹</button><strong>${escape(dateLabel(activeDay))}</strong><button class="btn mini" data-action="day-next" aria-label="Jour suivant">›</button></div>
- ${renderMissionList(list,activeDay)}
+ ${fixed.length?`<h2 class="nm-planner-section">🕒 À heure fixe</h2>${renderMissionList(fixed,activeDay)}`:''}
+ ${flex.length?`<h2 class="nm-planner-section">⚡ Quand je veux</h2>${renderMissionList(flex,activeDay)}`:''}
+ ${!list.length?'<div class="empty">Aucune mission aujourd’hui.</div>':''}
  <div class="nm-quick-actions"><button class="btn primary block" data-action="show-homework">📚 Préparer un bloc de devoirs →</button></div>
- <details class="nm-planner-tools"><summary>⏱️ Je suis en retard</summary><p>Je peux proposer un nouvel ordre sans déplacer les obligations importantes.</p><button class="btn block" data-action="replan">Réorganiser ma journée</button><div id="replan-result"></div></details>`;
+ <details class="nm-planner-tools"><summary>⏱️ Je suis en retard</summary><p>Les heures fixes restent en place. Les missions libres se font quand tu veux.</p><button class="btn block" data-action="replan">Voir mes priorités</button><div id="replan-result"></div></details>`;
 }
+
 const badges=[['⚡','Démarrage éclair',()=>data.runs.some(r=>r.status==='complete'&&r.late_s===0)],['🎯','10 missions',()=>data.runs.filter(r=>r.status==='complete').length>=10],['🏆','50 missions',()=>data.runs.filter(r=>r.status==='complete').length>=50],['🚀','Niveau 5',()=>levelInfo(data.wallet.xp).n>=5],['💎','Niveau 10',()=>levelInfo(data.wallet.xp).n>=10],['⏱️','Chrono dompté',()=>data.runs.filter(r=>r.status==='complete'&&r.elapsed_s<=900).length>=5],['🧠','Autonomie',()=>data.runs.filter(r=>r.late_s===0&&r.status==='complete').length>=20],['📚','Érudit',()=>data.runs.filter(r=>r.task_id.startsWith('hw-')&&r.status==='complete').length>=5],['🔥','Persévérant',()=>data.runs.filter(r=>r.status==='complete').length>=30]];
 function renderChallenges(){const done=data.runs.filter(r=>r.status==='complete'),quick=done.filter(r=>r.elapsed_s<=(data.config.tasks.find(t=>t.id===r.task_id)?.minutes||15)*60),self=done.filter(r=>r.late_s===0);const goals=[{name:'Départ canon',desc:'Commence 3 missions sans retard',done:Math.min(self.length,3),max:3,icon:'⚡'},{name:'Sprint du champion',desc:'Termine 5 missions dans le chrono',done:Math.min(quick.length,5),max:5,icon:'⏱️'},{name:'Série gagnante',desc:'Accomplis 10 missions',done:Math.min(done.length,10),max:10,icon:'🔥'}];
  return `<div class="section-title"><h2>🏆 CENTRE DES DÉFIS</h2><span class="pill gold">${badges.filter(b=>b[2]()).length} trophées</span></div><div class="card"><h2>⚡ Défis automatiques</h2>${goals.map(g=>`<div style="margin:14px 0"><div class="row between"><strong>${g.icon} ${g.name}</strong><span class="small muted">${g.done}/${g.max}</span></div><p class="small muted" style="margin:5px 0">${g.desc}</p><div class="progress"><span style="width:${g.done/g.max*100}%"></span></div></div>`).join('')}</div>
@@ -441,6 +445,11 @@ function modeChecks(modes=['school']){return `<div class="checks">${[['school','
 function field(label,name,type='text',value='',other=''){return `<div class="field"><label for="f-${name}">${label}</label><input id="f-${name}" name="${name}" type="${type}" value="${escape(value)}" ${other}></div>`}
 function selectField(label,name,options,val){return `<div class="field"><label for="f-${name}">${label}</label><select id="f-${name}" name="${name}">${options.map(([v,l])=>`<option value="${escape(v)}" ${String(val)===String(v)?'selected':''}>${escape(l)}</option>`).join('')}</select></div>`}
 
+function refreshTaskEditorVisibility(){
+ const fixed=$('#nm-fixed-field'),limit=$('#nm-limit-field');
+ if(fixed)fixed.style.display=$('#f-scheduleMode')?.value==='flexible'?'none':'';
+ if(limit)limit.style.display=$('#f-hasTimeLimit')?.value==='no'?'none':'';
+}
 function taskModal(identifier){
  const t=data.config.tasks.find(x=>x.id===identifier)||task('', '',0,'17:20',15,[1,2,3,4,5],{enabled:true,modes:['school','weekend','vacation']});
  const caps=taskCaps(t);
@@ -450,10 +459,10 @@ function taskModal(identifier){
    <div class="form-grid">
     ${selectField('Catégorie','category',categoryList().map((x,i)=>[i,x]),t.category)}
     ${selectField('Organisation','scheduleMode',[['fixed','🕒 À horaire fixe'],['flexible','⚡ N’importe quand dans la journée']],scheduleMode(t))}
-    ${field('Heure fixe (si choisie)','time','time',t.time,'required')}
+    <div id="nm-fixed-field" style="${scheduleMode(t)==='fixed'?'':'display:none'}">${field('Heure du rappel','time','time',t.time,'required')}</div>
     ${field('Durée suggérée (min)','minutes','number',t.minutes,'min="1" max="480" required')}
     ${selectField('Limite de temps','hasTimeLimit',[['yes','⏳ Avec limite'],['no','♾️ Sans limite']],taskHasLimit(t)?'yes':'no')}
-    ${field('Temps limite (min), si activé','maxMinutes','number',taskMaximum(t),'min="1" max="240" required')}
+    <div id="nm-limit-field" style="${taskHasLimit(t)?'':'display:none'}">${field('Limite de temps (min)','maxMinutes','number',taskMaximum(t),'min="1" max="240" required')}</div>
     ${field('XP MAXIMUM gagnables','xpMax','number',caps.xp,'min="0" max="500" required')}
     ${field('Pièces MAXIMUM gagnables','coinsMax','number',caps.coins,'min="0" max="500" required')}
     ${field('Échéance facultative','deadline','time',t.deadline||'')}
@@ -985,7 +994,7 @@ async function bootstrap(){
  });
  document.addEventListener('submit',onForm);
  document.addEventListener('input',e=>{if(e.target.id==='goal-minutes')refreshGoalPreview();if(e.target.id==='hw-duration')updateHomeworkPreview()});
- document.addEventListener('change',async e=>{if(e.target.id==='backup-import')await restoreBackup(e.target.files?.[0]);if(e.target.id==='hw-duration'){const x=Number(e.target.value);if(Number.isInteger(x)&&x>=1&&x<=480){homeworkDraft.estimate=x;homeworkDraft.manualEstimate=true;render();}}});
+ document.addEventListener('change',async e=>{if(['f-scheduleMode','f-hasTimeLimit'].includes(e.target.id))refreshTaskEditorVisibility();if(e.target.id==='backup-import')await restoreBackup(e.target.files?.[0]);if(e.target.id==='hw-duration'){const x=Number(e.target.value);if(Number.isInteger(x)&&x>=1&&x<=480){homeworkDraft.estimate=x;homeworkDraft.manualEstimate=true;render();}}});
  setInterval(clockTick,1000);
  setInterval(checkLocalChallenges,15000);
  setInterval(async()=>{if(connected&&navigator.onLine&&initDone&&data.paired){await refresh(true);storeCache()}},30000);

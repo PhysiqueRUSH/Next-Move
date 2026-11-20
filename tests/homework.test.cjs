@@ -26,6 +26,7 @@ async function test(){
  assert.ok(t.hwReward([{due,count:3}],30,40*60,today).xp>t.hwReward([{due,count:1}],30,40*60,today).xp,'Volume should earn more');
  assert.equal(t.hwReward([{due,count:2}],20,20*60,today).fast,true);
  assert.equal(t.hwReward([{due,count:2}],20,21*60,today).fast,false);
+ assert.ok(t.hwReward([{due,count:3}],45,45*60,today).xp>3*t.hwReward([{due,count:1}],15,15*60,today).xp,'A larger block should beat three small blocks with the same work');
 
  t.db.homeworkDates.push({due,count:5});t.setData();
  assert.equal(t.hwAvailable(due),5);

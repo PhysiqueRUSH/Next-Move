@@ -78,3 +78,6 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--cyan);outline
 @media(min-width:750px){.app{padding:26px 25px 110px}.layout-wide{display:block}.hero{min-height:unset}}
 @media(max-width:390px){.nm-mission-card{padding:23px 16px}.nm-mission-title{font-size:29px}.nm-mission-card .timer{font-size:64px}.nm-one-action{font-size:17px!important}.tabs button{font-size:10px}}
 @media(prefers-reduced-motion:reduce){.nm-pulse{box-shadow:none}}
+/* Sections de planning séparées pour Mahé */
+.nm-planner-section{font-size:16px;font-weight:900;letter-spacing:-.2px;color:#d8f2ff;margin:20px 1px 11px}
+.nm-planner-section:first-of-type{margin-top:5px}

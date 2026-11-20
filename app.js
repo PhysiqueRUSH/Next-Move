@@ -387,7 +387,33 @@ function renderChallenges(){const done=data.runs.filter(r=>r.status==='complete'
  <section class="card" style="margin-top:12px"><h2>🎖️ Trophées à débloquer</h2><div class="badge-grid">${badges.map(([icon,name,fn])=>`<div class="trophy ${fn()?'':'locked'}"><span class="emoji">${icon}</span><strong>${name}</strong><span class="tiny muted">${fn()?'DÉBLOQUÉ':'À GAGNER'}</span></div>`).join('')}</div></section>
  <section class="card" style="margin-top:12px"><h2>🎯 Défis du parent</h2>${(data.config.customChallenges||[]).length?(data.config.customChallenges||[]).map(c=>`<div class="mission"><span>🎯</span><div class="info"><strong>${escape(c.name)}</strong><p>${escape(c.description)} · Récompense : ${Number(c.coins)||0} pièces (validation parentale)</p></div></div>`).join(''):'<p class="small muted">Aucun défi parental pour l’instant.</p>'}</section>`;
 }
-function renderShop(){return `<div class="row between" style="margin:10px 0 20px"><h2 style="margin:0">🪙 BOUTIQUE XP</h2><span class="pill gold">${data.wallet.coins} pièces</span></div><div class="stack">${(data.config.rewards||[]).filter(r=>r.active!==false).map(r=>`<div class="reward"><span class="emoji">${escape(r.icon||'🎁')}</span><div class="info"><strong>${escape(r.name)}</strong><p>🎟️ ${r.cost} pièces · Approbation parentale</p></div><button class="btn mini primary" data-action="request-reward" data-id="${escape(r.id)}" ${data.wallet.coins<r.cost?'disabled':''}>Obtenir</button></div>`).join('')}
+async function convertXpFromShop(){
+ const amount=Number($('#nm-convert-amount')?.value||0);
+ if(!Number.isInteger(amount)||amount<1)return toast('Choisis un nombre de pièces.');
+ if(!confirm('Convertir '+(amount*exchangeRate())+' XP disponibles en '+amount+' pièce(s) ? Tes niveaux resteront acquis.'))return;
+ try{
+  await call('/xp/convert','POST',{coins:amount});
+  await refresh(true);toast('🪙 Conversion réussie : +'+amount+' pièce(s) !');
+ }catch(e){toast('Conversion impossible : '+e.message)}
+}
+function refreshExchangePreview(){
+ const el=$('#nm-convert-preview'),input=$('#nm-convert-amount');
+ if(!el||!input)return;
+ const amount=Number(input.value),cost=amount*exchangeRate();
+ el.textContent=Number.isInteger(amount)&&amount>=1&&amount<=1000?cost+' XP disponibles → '+amount+' pièce(s)':'Saisis un nombre valide.';
+}
+function renderShop(){
+ const bank=spendableXp(),rate=exchangeRate(),available=Math.floor(bank/rate),history=(data.exchanges||[]).slice(0,5);
+ return `<div class="row between" style="margin:10px 0 20px"><h2 style="margin:0">🎁 CADEAUX</h2><span class="pill gold">${data.wallet.coins} pièces</span></div>
+ <section class="nm-exchange-panel"><h2>⚡ Convertir mes XP en pièces</h2>
+ <p>⚡ <strong>${bank}</strong> XP disponibles · ${rate} XP = 1 pièce</p>
+ <p class="small muted">Les XP déjà gagnés pour tes niveaux restent acquis.</p>
+ <div class="nm-exchange-controls"><input id="nm-convert-amount" type="number" inputmode="numeric" min="1" max="${Math.min(1000,Math.max(1,available))}" value="1" aria-label="Nombre de pièces à convertir"><button class="btn primary" data-action="convert-xp" ${available<1?'disabled':''}>Convertir</button></div>
+ <div class="nm-exchange-preview" id="nm-convert-preview">${rate} XP disponibles → 1 pièce</div>
+ ${history.length?`<details><summary>Mes dernières conversions</summary>${history.map(x=>`<p class="small muted">−${x.xp} XP · +${x.coins} 🪙</p>`).join('')}</details>`:''}
+ </section>
+ <div class="stack">`;
+}${(data.config.rewards||[]).filter(r=>r.active!==false).map(r=>`<div class="reward"><span class="emoji">${escape(r.icon||'🎁')}</span><div class="info"><strong>${escape(r.name)}</strong><p>🎟️ ${r.cost} pièces · Approbation parentale</p></div><button class="btn mini primary" data-action="request-reward" data-id="${escape(r.id)}" ${data.wallet.coins<r.cost?'disabled':''}>Obtenir</button></div>`).join('')}
  <section class="card"><h2>📜 Mes demandes</h2>${(data.requests||[]).slice(0,12).map(r=>`<div class="mission"><span class="time">${r.cost}🪙</span><div class="info"><strong>${escape(data.config.rewards.find(x=>x.id===r.reward_id)?.name||'Récompense')}</strong><p>${r.status==='pending'?'⏳ En attente du parent':r.status==='approved'?'✅ Accordée':'❌ Non validée'}</p></div></div>`).join('')||'<p class="small muted">Aucune demande pour l’instant.</p>'}</section></div>`}
 function rankName(n){return n>=15?'Légende':n>=10?'Élite':n>=7?'Champion':n>=4?'Explorateur':'Recrue'}
 
@@ -843,6 +869,9 @@ const actions={
  'goal-minus':()=>{const input=$('#goal-minutes');if(input){input.value=Math.max(Number(input.min)||1,(Number(input.value)||1)-1);refreshGoalPreview()}},
  'goal-plus':()=>{const input=$('#goal-minutes');if(input){input.value=Math.min(Number(input.max)||480,(Number(input.value)||1)+1);refreshGoalPreview()}},
  'finish':(_,el)=>finishTask(el.dataset.id),
+ 'approve-run-pin':(_,el)=>resolveRunWithPin(el.dataset.id,true),
+ 'reject-run-pin':(_,el)=>resolveRunWithPin(el.dataset.id,false),
+ 'convert-xp':()=>convertXpFromShop(),
  'toggle-sound':()=>{localStorage.setItem('nm_mute',localStorage.getItem('nm_mute')==='yes'?'no':'yes');render()},
  'parent-entry':async()=>{if(connected){await googleLogin()}else{role='parent';pinUnlocked=false;render()}},
  'google-login':()=>googleLogin(),
@@ -901,7 +930,35 @@ const actions={
  'title':async(_,el)=>{try{await call('/customize','POST',{kind:'title',value:el.dataset.id});await refresh(true);toast('Titre sélectionné !')}catch(e){toast(e.message)}},
  'notify':()=>requestNotifications()
 };
-async function resolveRun(id,approve){try{await call('/run/approve','POST',{id,approve});await refresh(true);toast(approve?'✅ Mission approuvée':'Validation refusée')}catch(e){toast(e.message)}}
+function modalApproveRun(id){
+ const r=(data.runs||[]).find(x=>x.id===id&&x.status==='pending_parent');
+ if(!r)return toast('Cette validation est déjà terminée.');
+ const t=tasksFor(r.day).find(x=>x.id===r.task_id);
+ const title=escape(t?.title||(data.homeworkBlocks||[]).find(x=>x.id===r.task_id)?.title||'Mission');
+ const penalty=r.penaltyDecision==='pending'?r.penaltyProposal:null;
+ openModal(`<div class="nm-approve-header"><span>🔐</span><h2>Validation parentale</h2></div>
+  <p class="nm-approve-title">${title}</p>
+  <div class="nm-result-summary"><span>⏱️ Chrono arrêté à <strong>${pretty(Number(r.elapsed_s)||0)}</strong></span><span>⚡ ${Number(r.xp)||0} XP · 🪙 ${Number(r.coins)||0} pièce(s) en attente</span></div>
+  ${r.overrun?'<p class="nm-penalty-warning">Limite dépassée : cette mission ne rapporte aucun point.</p>':''}
+  ${penalty?`<label class="nm-penalty-choice"><input type="checkbox" id="nm-apply-penalty" checked> Appliquer le malus proposé : −${Number(penalty.xp)||0} XP disponibles et −${Number(penalty.coins)||0} pièces</label>`:''}
+  <div class="field"><label for="nm-approval-pin">Code PIN parent (4 chiffres)</label><input id="nm-approval-pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" autocomplete="off" placeholder="••••" aria-label="Code PIN parent"></div>
+  <div class="nm-approval-actions"><button class="btn danger" data-action="reject-run-pin" data-id="${escape(id)}">Refuser</button><button class="btn success" data-action="approve-run-pin" data-id="${escape(id)}">✓ Valider</button></div>
+  <p class="small muted">Le chrono est définitivement arrêté depuis que Mahé a déclaré la fin. Aucune minute supplémentaire n'est comptée pendant cette attente.</p>`);
+}
+async function resolveRun(id,approve){
+ modalApproveRun(id);
+}
+async function resolveRunWithPin(id,approve){
+ const pin=$('#nm-approval-pin')?.value||'';
+ const applyPenalty=!!$('#nm-apply-penalty')?.checked;
+ if(!/^\d{4}$/.test(pin))return toast('Saisis le code PIN parental à 4 chiffres.');
+ try{
+  const response=await call('/run/approve','POST',{id,approve,pin,applyPenalty});
+  closeModal();await refresh(true);
+  if(approve)toast('✅ Mission vérifiée · '+(response.points?.xp||0)+' XP et '+(response.points?.coins||0)+' pièces crédités');
+  else toast('Mission non validée : aucun gain attribué.');
+ }catch(e){toast('Validation impossible : '+e.message)}
+}
 async function resolvePenalty(id,approve){
  if(role!=='parent'||!pinUnlocked)return toast('Accès parent requis');
  if(!confirm(approve?'Confirmer la pénalité en XP et en pièces ?':'Annuler cette pénalité ?'))return;
@@ -1070,7 +1127,7 @@ async function bootstrap(){
   event.preventDefault();const action=actions[target.dataset.action];if(action)try{await action(event,target)}catch(e){toast('Erreur : '+e.message)}
  });
  document.addEventListener('submit',onForm);
- document.addEventListener('input',e=>{if(e.target.id==='goal-minutes')refreshGoalPreview();if(e.target.id==='hw-duration')updateHomeworkPreview()});
+ document.addEventListener('input',e=>{if(e.target.id==='goal-minutes')refreshGoalPreview();if(e.target.id==='hw-duration')updateHomeworkPreview();if(e.target.id==='nm-convert-amount')refreshExchangePreview()});
  document.addEventListener('change',async e=>{if(['f-scheduleMode','f-hasTimeLimit'].includes(e.target.id))refreshTaskEditorVisibility();if(e.target.id==='backup-import')await restoreBackup(e.target.files?.[0]);if(e.target.id==='hw-duration'){const x=Number(e.target.value);if(Number.isInteger(x)&&x>=1&&x<=480){homeworkDraft.estimate=x;homeworkDraft.manualEstimate=true;render();}}});
  setInterval(clockTick,1000);
  setInterval(checkLocalChallenges,15000);

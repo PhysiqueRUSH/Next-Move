@@ -19,6 +19,20 @@ vm.createContext(ctx);vm.runInContext(source,ctx,{filename:'app.js'});
 const t=ctx.__test;
 async function main(){
  const normal=t.task('speed-test','Rangement',3,'12:00',10,[0,1,2,3,4,5,6],{modes:['school','weekend','vacation'],maxMinutes:15});
+ const screenshotTask=t.task('ready-test','Habillage + dents',0,'06:40',18,[0,1,2,3,4,5,6],{xpMax:40,coinsMax:15,maxMinutes:27,hasTimeLimit:true});
+ const perfect=t.taskReward(screenshotTask,5,27,5*60,0);
+ const delayed=t.taskReward(screenshotTask,5,27,5*60,60);
+ assert.equal(perfect.xp,40,'Full 40 XP must be realistically reachable in five minutes with on-time start');
+ assert.equal(perfect.coins,15,'Full 15 coins must be realistically reachable with on-time start');
+ assert.equal(delayed.xp,36,'Late start reduces reachable cap to 36 XP');
+ assert.equal(delayed.coins,14,'Late start reduces reachable coins to 14');
+ assert.equal(t.taskReward(screenshotTask,5,27,60,0).xp,40,'Faster than full-speed threshold stays capped, no impossible asymptote');
+ assert.equal(t.taskReward(screenshotTask,5,27,60,0).coins,15,'Faster action cannot exceed maximum coins');
+ assert.equal(t.taskReward(screenshotTask,5,27,5*60,30).xp,40,'The one-minute start grace counts as on time');
+ assert.ok(t.taskReward(screenshotTask,5,27,8*60,0).xp<40,'Missing the chosen personal goal must reduce the reward');
+ assert.match(t.goalPreview(screenshotTask,5),/Termine en/,'Preview explains how to win maximum');
+ assert.match(t.goalPreview(screenshotTask,5),/40 XP et 15 pièces|40 XP · 15/,'The exact attainable maximum appears in the preview');
+
  const fast=t.taskReward(normal,10,15,60,0),slower=t.taskReward(normal,10,15,480,0);
  assert.ok(fast.xp>slower.xp,'Faster mission must earn more XP');
  assert.ok(fast.coins>slower.coins,'Faster mission must earn more coins');

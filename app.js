@@ -1,7 +1,4 @@
-/* NEXT MOVE 1.0 · PWA autonome, interface enfant + parent
- * L'application fonctionne immédiatement en démonstration, puis en mode connecté
- * une fois Firebase et Cloudflare configurés. Pas de secrets dans le navigateur.
- */
+/* NEXT MOVE · PWA locale pour Mahé, interface simplifiée */
 (()=>{'use strict';
 const cfg=globalThis.NEXT_MOVE_CONFIG||{};
 const connected=false; // Mode autonome : aucun service distant nécessaire.
@@ -89,40 +86,69 @@ function render(){if(!initDone)return;
  if(connected&&!data.paired&&role==='child'){renderPairing();return;}
  if(parentGuard()){renderPin();return;}
  const lev=levelInfo(data.wallet.xp),isParent=role==='parent';
- const nav=isParent?[['stats','📊','Bilan'],['tasks','🎯','Missions'],['calendar','📅','Planning'],['rewards','🪙','Boutique'],['settings','⚙️','Réglages']]:[['today','⚡','Mission'],['planning','📋','Journée'],['challenges','🏆','Défis'],['shop','🪙','Boutique'],['profile','🚀','Profil'],['parent-settings','⚙️','Réglages']];
+ const nav=isParent?[['stats','📊','Bilan'],['tasks','🎯','Missions'],['calendar','📅','Planning'],['rewards','🪙','Boutique'],['settings','⚙️','Réglages']]:[['today','⚡','Mission'],['planning','📅','Journée'],['challenges','🏆','Défis'],['shop','🎁','Cadeaux']];
  const current=isParent?adminTab:tab;
- const header=`<div class="header"><div class="mark"><div class="mark-icon">ϟ</div><div><div class="brand">NEXT MOVE</div><div class="brand-sub">TA PROCHAINE ACTION. TON PROCHAIN NIVEAU.</div></div></div><div class="header-actions"><button class="iconbtn" data-action="toggle-sound" title="Activer/couper le son">${localStorage.getItem('nm_mute')==='yes'?'🔇':'🔊'}</button>${isParent?`<button class="iconbtn" data-action="switch-child" title="Quitter le mode parent">👋</button>`:`<button class="iconbtn" data-action="parent-entry" title="Paramètres parentaux (code PIN)">⚙️</button>`}</div></div>`;
- const demo=''; // Le mode local est désormais le fonctionnement normal.
+ const header=`<div class="header"><div class="mark"><div class="mark-icon">ϟ</div><div><div class="brand">NEXT MOVE</div></div></div><div class="header-actions">${isParent?'<button class="iconbtn" data-action="switch-child" aria-label="Retour à Mahé" title="Retour">↩</button>':`<button class="iconbtn nm-avatar-button" data-action="tab" data-id="profile" aria-label="Mon profil" title="Mon profil">${escape(data.config.avatar||'🚀')}</button><button class="iconbtn" data-action="parent-entry" aria-label="Réglages parentaux" title="Réglages parentaux">⚙️</button>`}</div></div>`;
+ const demo='';
  const page=isParent?renderAdmin():renderChild();
- $('#app').innerHTML=`<main class="app">${header}${demo}${page}</main><nav class="tabs" aria-label="Navigation">${nav.map(([key,icon,label])=>`<button data-action="tab" data-id="${key}" class="${current===key?'active':''}"><span>${icon}</span>${label}</button>`).join('')}</nav>`;
+ $('#app').innerHTML=`<main class="app ${isParent?'parent-app':'child-app'}">${header}${demo}${page}</main><nav class="tabs" aria-label="Navigation">${nav.map(([key,icon,label])=>`<button data-action="tab" data-id="${key}" class="${current===key?'active':''}"><span>${icon}</span>${label}</button>`).join('')}</nav>`;
  window.scrollTo({top:scroll,behavior:'instant'});clockTick();
 }
 function renderChild(){switch(tab){case 'planning':return renderPlanning();case 'challenges':return renderChallenges();case 'shop':return renderShop();case 'profile':return renderProfile();case 'parent-settings':return renderParentAccess();default:return renderToday();}}
-function renderParentAccess(){return `<section class="hero center"><div style="font-size:56px">🔐</div><h1>PARAMÈTRES PARENTAUX</h1><p>Accès réservé au parent. Crée ou saisis ton code PIN personnel à 4 chiffres pour gérer les missions, horaires, récompenses et validations.</p><button class="btn primary block" data-action="parent-entry">⚙️ Ouvrir les paramètres avec mon code</button></section><section class="card" style="margin-top:14px"><h2>📱 NEXT MOVE SUR CE TÉLÉPHONE</h2><p class="small muted">Les données sont enregistrées ici. Pas besoin de compte Google, de Firebase ou de Cloudflare. Pense à exporter régulièrement une sauvegarde depuis les paramètres parentaux.</p></section>`}
+function renderParentAccess(){return `<section class="nm-mission-card nm-empty-screen"><span class="nm-emoji">🔐</span><h1>Réglages parentaux</h1><p>Accès réservé au parent.</p><button class="btn primary block" data-action="parent-entry">Saisir mon code</button></section>`}
 function renderToday(){
- const all=tasksFor(activeDay),finished=all.filter(t=>isDone(runFor(t.id))).length,mission=getActive(),level=levelInfo(data.wallet.xp);
+ const all=tasksFor(activeDay);
+ const finished=all.filter(t=>{const r=runFor(t.id,activeDay);return r&&['complete','pending_parent'].includes(r.status)}).length;
+ const mission=getActive();
+ const level=levelInfo(data.wallet.xp);
+ const today=activeDay===dayNow();
+ const name=escape(data.config.childName||'Mahé');
  let hero='';
- if(!mission){hero=`<section class="hero center"><div class="eyebrow">${finished===all.length?'TOUTES LES MISSIONS FINIES':'AUCUNE MISSION ACTIVE'}</div><div style="font-size:65px;margin:15px">🏆</div><h1>${finished===all.length?'JOURNÉE VALIDÉE !':'À TOI DE JOUER !'}</h1><p>${finished===all.length?'Bravo ! Toutes les missions sont terminées.':'Consulte ton planning : certaines missions sont peut-être en retard ou expirées.'}</p><button class="btn primary" data-action="tab" data-id="challenges">Voir mes trophées</button></section>`}
- else{
-  const r=runFor(mission.id),running=r?.status==='running';
-  hero=`<section class="hero"><div class="row between wrap"><span class="eyebrow">${running?'⚡ DÉFI EN COURS':'🎯 TA PROCHAINE MISSION'}</span><span class="pill">${categoryList()[mission.category]||'🎯 Mission'}</span></div><h1>${escape(mission.title)}</h1><p>${mission.homework?'Devoir à terminer · ':''}Objectif : ${mission.minutes} min · Départ prévu à ${mission.time}</p>
-  <div class="timer ${running?'':'overtime-ready'}" id="timer-num" data-task="${escape(mission.id)}">${running?'--:--':pretty(Number(mission.minutes)*60)}</div><div class="timer-caption" id="timer-caption">${running?'TEMPS RESTANT':'CHRONO PRÊT'}</div>
-  <div class="progress" style="margin:20px 0 14px"><span id="timer-progress" style="width:0%"></span></div>
-  ${mission.steps?.length?`<div class="small muted">${mission.steps.map(s=>'✓ '+escape(s)).join(' · ')}</div>`:''}
-  <div class="row wrap" style="margin:18px 0"><span class="pill cyan">⚡ ${mission.xpBase??10} à ${(mission.xpBase??10)+(mission.xpSpeed??10)+(mission.xpInitiative??15)+5} XP</span><span class="pill gold">🪙 ${mission.coinsBase??5} à ${(mission.coinsBase??5)+(mission.coinsSpeed??3)+(mission.coinsInitiative??5)}</span>${running?'<span class="pill green">SANS PAUSE</span>':''}</div>
-  ${running?`<button class="btn success block" data-action="finish" data-id="${escape(mission.id)}">✓ MISSION TERMINÉE</button>`:`<button class="btn primary block" data-action="start" data-id="${escape(mission.id)}">▶ JE COMMENCE !</button>`}
-  <p class="small center" style="margin-bottom:0">${running?'Le chrono continue même si tu quittes l’application.':'Plus tu démarres tôt, plus tu gagnes de points !'}</p></section>`;
+ if(!mission){
+  hero=`<section class="nm-mission-card nm-empty-screen"><span class="nm-emoji">${all.length?'🏆':'🌟'}</span><h1>${all.length?'Tous les défis sont terminés !':'Rien de prévu aujourd’hui'}</h1><p>${all.length?'Bravo, tu as assuré !':'Tu peux profiter de ton temps libre.'}</p><button class="btn primary" data-action="tab" data-id="challenges">Voir mes trophées</button></section>`;
+ }else{
+  const r=runFor(mission.id,activeDay),running=r?.status==='running';
+  const mins=Math.max(1,Number(mission.minutes)||1);
+  const category=escape(categoryList()[mission.category]||'🎯 Mission');
+  const maxXp=(mission.xpBase??10)+(mission.xpSpeed??10)+(mission.xpInitiative??15)+5;
+  const maxCoins=(mission.coinsBase??5)+(mission.coinsSpeed??3)+(mission.coinsInitiative??5);
+  hero=`<section class="nm-mission-card">
+   <div class="nm-eyebrow"><span class="nm-pulse"></span>${running?'DÉFI EN COURS':'TA PROCHAINE MISSION'}</div>
+   <h1 class="nm-mission-title">${escape(mission.title)}</h1>
+   <div class="nm-mission-meta"><span>${category}</span><span class="dot">•</span><span>${escape(mission.time)}</span><span class="dot">•</span><span>${mins} min</span></div>
+   <div class="nm-timer-stage">
+     <div class="timer" id="timer-num" data-task="${escape(mission.id)}">${running?'--:--':pretty(mins*60)}</div>
+     <div class="timer-caption" id="timer-caption">${running?'TEMPS RESTANT':'TEMPS POUR RÉUSSIR'}</div>
+   </div>
+   <div class="progress"><span id="timer-progress" style="width:0%"></span></div>
+   ${mission.steps?.length?`<details class="nm-steps"><summary>👀 Voir les ${mission.steps.length} étapes</summary><ul>${mission.steps.map(x=>`<li>${escape(x)}</li>`).join('')}</ul></details>`:''}
+   <button class="btn ${running?'success':'primary'} block nm-one-action" data-action="${running?'finish':'start'}" data-id="${escape(mission.id)}">${running?'✓ J’AI TERMINÉ':'▶ JE COMMENCE !'}</button>
+   <div class="nm-reward-hint"><span>⚡ Jusqu’à ${maxXp} XP</span><span>🪙 <strong>+${maxCoins}</strong></span></div>
+  </section>`;
  }
- return `<div class="row between wrap" style="margin-bottom:14px"><span class="pill">📆 ${escape(dateLabel(activeDay))}</span><div class="row">${walletBadge()}</div></div>
- <div class="layout-wide"><div>${hero}<div class="section-title"><h2>En vue aujourd'hui</h2><button class="btn mini" data-action="tab" data-id="planning">Tout voir →</button></div>${renderMissionList(all.slice(0,4),activeDay)}</div>
- <div class="stack"><section class="levelbar"><div class="row between"><strong>🏅 NIVEAU ${level.n} · ${rankName(level.n)}</strong><span class="small muted">${level.current} / ${level.needed} XP</span></div><div class="progress"><span style="width:${level.progress}%"></span></div><p class="small muted" style="margin-bottom:0">Encore ${level.needed-level.current} XP avant le prochain niveau.</p></section>
- <section class="card"><div class="row between"><h2 style="margin:0">PROGRESSION DU JOUR</h2><span class="pill green">${finished}/${all.length}</span></div><div class="progress" style="margin:14px 0"><span style="width:${all.length?100*finished/all.length:0}%"></span></div><div class="grid2"><div class="stat"><span class="small muted">Réussies</span><strong>${finished}</strong></div><div class="stat"><span class="small muted">Restantes</span><strong>${all.length-finished}</strong></div></div></section>
- <section class="card"><h2>📚 MES DEVOIRS</h2><p class="small muted">Consulte PRONOTE, choisis la matière, estime ta durée et lance ton chrono.</p><div class="row wrap"><button class="btn mini" data-action="pronote">Ouvrir PRONOTE ↗</button><button class="btn mini primary" data-action="add-homework">+ Matière</button></div></section>
- </div></div>`;
+ return `<div class="nm-topbar"><span class="nm-greeting">Salut ${name} 👋</span><div class="nm-saldo"><span>🪙 ${Number(data.wallet.coins)||0}</span><strong>Niv. ${level.n}</strong></div></div>
+ <div class="nm-day-progress"><div class="nm-progress-line"><span>${today?"Aujourd’hui":escape(dateLabel(activeDay))}</span><strong>${finished} / ${all.length} missions</strong></div><div class="progress"><span style="width:${all.length?Math.round(100*finished/all.length):0}%"></span></div></div>
+ ${hero}
+ <div class="nm-bottom-nav"><button data-action="tab" data-id="planning">📅 Voir toute ma journée <span>→</span></button></div>`;
 }
-function renderMissionList(list,day){return `<div class="mission-list">${list.length?list.map(t=>{const r=runFor(t.id,day),status=r?.status||'todo';return `<div class="mission ${isDone(r)?'completed':''} ${r?.late_s>60?'late':''}"><span class="time">${t.time}</span><div class="info"><strong>${escape(t.title)}</strong><p>${t.minutes} min · ${escape(['Prioritaire','Important','Flexible'][t.priority-1]||'Mission')} ${t.carriedFrom?'· 🔄 À rattraper':''}${r?.late_s>60?'· Démarrage en retard':''}</p></div><span class="state">${status==='complete'?'✅':status==='pending_parent'?'🟡':status==='running'?'⏱️':'○'}</span></div>`}).join(''):'<div class="empty">Aucune mission pour cette journée.</div>'}</div>`}
-function renderPlanning(){const list=tasksFor(activeDay);return `<div class="section-title"><h2>📋 PLANNING COMPLET</h2><span class="pill">${escape(modeFor(activeDay))}</span></div><div class="card"><div class="row between"><button class="btn mini" data-action="day-prev">← Précédent</button><strong>${escape(dateLabel(activeDay))}</strong><button class="btn mini" data-action="day-next">Suivant →</button></div></div><section class="card" style="margin-top:12px"><div class="section-title" style="margin:0 0 12px"><h2>Mes missions</h2><span class="pill cyan">${list.length} défis</span></div>${renderMissionList(list,activeDay)}<div class="divider"></div><button class="btn primary block" data-action="add-homework">+ Ajouter une matière à travailler</button></section>
- <section class="card" style="margin-top:12px"><h2>🧠 Organisation intelligente</h2><p class="small muted">Les obligations prioritaires restent fixes. Les missions flexibles en retard peuvent être proposées plus tard dans la journée.</p><button class="btn block" data-action="replan">Proposer mon plan de rattrapage</button><div id="replan-result"></div></section>`}
+function renderMissionList(list,day){
+ const someoneRunning=list.some(t=>runFor(t.id,day)?.status==='running');
+ return `<div class="nm-simple-list">${list.length?list.map(t=>{
+  const r=runFor(t.id,day),status=r?.status||'todo';
+  const done=['complete','pending_parent'].includes(status);
+  const label=status==='complete'?'✅':status==='pending_parent'?'⏳':status==='running'?'⏱️':status==='rejected'?'↻':'';
+  const canStart=day===dayNow()&&!r&&!someoneRunning;
+  return `<div class="mission ${done?'completed':''}"><span class="time">${escape(t.time)}</span><div class="info"><strong>${escape(t.title)}</strong><p>${Number(t.minutes)||1} min${status==='running'?' · En cours':status==='pending_parent'?' · À valider':status==='complete'?' · Terminé':t.carriedFrom?' · À rattraper':''}</p></div>${canStart?`<button class="btn mini primary nm-list-action" data-action="start" data-id="${escape(t.id)}">▶</button>`:`<span class="state">${label||'○'}</span>`}</div>`;
+ }).join(''):'<div class="empty">Aucun défi ce jour-là.</div>'}</div>`;
+}
+function renderPlanning(){
+ const list=tasksFor(activeDay);
+ return `<h1 class="nm-page-title">📅 Ma journée</h1>
+ <div class="nm-day-picker"><button class="btn mini" data-action="day-prev" aria-label="Jour précédent">‹</button><strong>${escape(dateLabel(activeDay))}</strong><button class="btn mini" data-action="day-next" aria-label="Jour suivant">›</button></div>
+ ${renderMissionList(list,activeDay)}
+ <div class="nm-quick-actions"><button class="btn" data-action="pronote">📚 PRONOTE ↗</button><button class="btn primary" data-action="add-homework">+ Devoir</button></div>
+ <details class="nm-planner-tools"><summary>⏱️ Je suis en retard</summary><p>Je peux proposer un nouvel ordre sans déplacer les obligations importantes.</p><button class="btn block" data-action="replan">Réorganiser ma journée</button><div id="replan-result"></div></details>`;
+}
 const badges=[['⚡','Démarrage éclair',()=>data.runs.some(r=>r.status==='complete'&&r.late_s===0)],['🎯','10 missions',()=>data.runs.filter(r=>r.status==='complete').length>=10],['🏆','50 missions',()=>data.runs.filter(r=>r.status==='complete').length>=50],['🚀','Niveau 5',()=>levelInfo(data.wallet.xp).n>=5],['💎','Niveau 10',()=>levelInfo(data.wallet.xp).n>=10],['⏱️','Chrono dompté',()=>data.runs.filter(r=>r.status==='complete'&&r.elapsed_s<=900).length>=5],['🧠','Autonomie',()=>data.runs.filter(r=>r.late_s===0&&r.status==='complete').length>=20],['📚','Érudit',()=>data.runs.filter(r=>r.task_id.startsWith('hw-')&&r.status==='complete').length>=5],['🔥','Persévérant',()=>data.runs.filter(r=>r.status==='complete').length>=30]];
 function renderChallenges(){const done=data.runs.filter(r=>r.status==='complete'),quick=done.filter(r=>r.elapsed_s<=(data.config.tasks.find(t=>t.id===r.task_id)?.minutes||15)*60),self=done.filter(r=>r.late_s===0);const goals=[{name:'Départ canon',desc:'Commence 3 missions sans retard',done:Math.min(self.length,3),max:3,icon:'⚡'},{name:'Sprint du champion',desc:'Termine 5 missions dans le chrono',done:Math.min(quick.length,5),max:5,icon:'⏱️'},{name:'Série gagnante',desc:'Accomplis 10 missions',done:Math.min(done.length,10),max:10,icon:'🔥'}];
  return `<div class="section-title"><h2>🏆 CENTRE DES DÉFIS</h2><span class="pill gold">${badges.filter(b=>b[2]()).length} trophées</span></div><div class="card"><h2>⚡ Défis automatiques</h2>${goals.map(g=>`<div style="margin:14px 0"><div class="row between"><strong>${g.icon} ${g.name}</strong><span class="small muted">${g.done}/${g.max}</span></div><p class="small muted" style="margin:5px 0">${g.desc}</p><div class="progress"><span style="width:${g.done/g.max*100}%"></span></div></div>`).join('')}</div>
@@ -136,7 +162,7 @@ function renderProfile(){const lvl=levelInfo(data.wallet.xp),all=data.runs.filte
  <section class="card" style="margin-top:14px"><h2>📈 Mes records</h2><div class="grid3"><div class="stat"><span class="small muted">Missions</span><strong>${all.length}</strong></div><div class="stat"><span class="small muted">Sans retard</span><strong>${all.filter(r=>r.late_s===0).length}</strong></div><div class="stat"><span class="small muted">Trophées</span><strong>${badges.filter(b=>b[2]()).length}</strong></div></div></section>
  <section class="card" style="margin-top:14px"><h2>🎨 Mon profil à débloquer</h2><div class="grid3">${[['🚀',1],['🦾',3],['🥷',5],['🛸',7],['👑',10],['🐉',15]].map(([icon,unlock])=>`<button class="btn" data-action="avatar" data-id="${icon}" ${lvl.n<unlock?'disabled':''}>${icon}<br><span class="tiny">Niv. ${unlock}</span></button>`).join('')}</div><div class="divider"></div><h3>Cadres débloqués</h3><div class="row wrap">${[['neon',1],['plasma',4],['legendary',10]].map(([v,l])=>`<button class="btn mini" data-action="frame" data-id="${v}" ${lvl.n<l?'disabled':''}>${v} · Niv. ${l}</button>`).join('')}</div><div class="divider"></div><h3>Titres à débloquer</h3><div class="row wrap">${[['Recrue',1],['Sprinter',3],['Stratège',6],['Légende',12]].map(([v,l])=>`<button class="btn mini" data-action="title" data-id="${v}" ${lvl.n<l?'disabled':''}>${v} · Niv. ${l}</button>`).join('')}</div><div class="divider"></div>${connected?'<button class="btn primary block" style="margin:12px 0" data-action="notify">🔔 Activer les notifications-défis</button>':''}<div class="row between"><span class="small muted">Effets sonores</span><button class="btn mini" data-action="toggle-sound">${localStorage.getItem('nm_mute')==='yes'?'Réactiver':'Couper'} les sons</button></div></section>`}
 function renderAdmin(){switch(adminTab){case 'tasks':return renderAdminTasks();case 'calendar':return renderAdminCalendar();case 'rewards':return renderAdminRewards();case 'settings':return renderAdminSettings();default:return renderAdminStats();}}
-function adminHeading(title,detail=''){return `<div class="section-title"><h2>${title}</h2><span class="pill">🔐 PARENT</span></div>${detail?`<p class="small muted">${detail}</p>`:''}`}
+function adminHeading(title,detail=''){return `<div class="section-title"><h2>${title}</h2></div>`}
 function renderAdminStats(){const last7=data.runs.filter(r=>r.day>=futureDays(-6)&&r.status==='complete'),total=data.runs.filter(r=>r.status==='complete');const started=data.runs.filter(r=>r.started_at),prompt=started.filter(r=>r.late_s===0).length,early=started.length?Math.round(prompt/started.length*100):0;const avg=started.length?Math.round(started.reduce((a,r)=>a+(r.late_s||0),0)/started.length/60):0;const approved=data.runs.filter(r=>r.status==='pending_parent'),redeems=data.requests.filter(r=>r.status==='pending');
  const days=Array.from({length:7},(_,i)=>futureDays(i-6)),byDay=days.map(x=>({day:x.slice(8),count:total.filter(r=>r.day===x).length})),peak=Math.max(1,...byDay.map(d=>d.count));
  const goal=total.length>=15&&early>=75;return `${adminHeading('📊 TABLEAU DE BORD','Évolution de la réactivité, de la rapidité et de la régularité.')}
@@ -219,7 +245,7 @@ async function refresh(quiet=false){if(!initDone)return;try{const result=await c
   const initial=defaultConfig(false);await call('/config','PUT',initial);data.config=initial;
  }if(!quiet)toast('Données actualisées');render()}catch(e){if(!quiet)toast(e.message);if(e.message==='NOT_PAIRED'){data.paired=false;role='child';render()}else if(connected){const local=localStorage.getItem('nm_state_cache');if(local){const cached=JSON.parse(local);data={...data,...cached};render()}}}}
 function storeCache(){if(connected){const safe={config:data.config,runs:data.runs,wallet:data.wallet,homework:data.homework,requests:data.requests,paired:data.paired};localStorage.setItem('nm_state_cache',JSON.stringify(safe))}}
-async function changeTab(which){if(role==='parent')adminTab=which;else tab=which;render();window.scrollTo(0,0)}
+async function changeTab(which){if(role==='parent')adminTab=which;else {tab=which;if(which==='today')activeDay=dayNow();}render();window.scrollTo(0,0)}
 async function startTask(taskId){const day=activeDay;if(day!==dayNow())return toast('Lance les missions du jour uniquement.');
  const old=runFor(taskId,day);if(old)return toast('Cette mission est déjà commencée.');
  try{const r=await call('/run/start','POST',{taskId,day});if(!data.runs.some(x=>x.id===r.run.id))data.runs.unshift(r.run);render();beep(700,.1);toast('⚡ Chrono lancé, c’est parti !')}
@@ -271,7 +297,7 @@ const actions={
  'tab':(_,el)=>changeTab(el.dataset.id),
  'day-prev':()=>{activeDay=futureDate(activeDay,-1);render()},
  'day-next':()=>{activeDay=futureDate(activeDay,1);render()},
- 'start':(_,el)=>startTask(el.dataset.id),
+ 'start':async(_,el)=>{tab='today';activeDay=dayNow();await startTask(el.dataset.id);window.scrollTo(0,0)},
  'finish':(_,el)=>finishTask(el.dataset.id),
  'toggle-sound':()=>{localStorage.setItem('nm_mute',localStorage.getItem('nm_mute')==='yes'?'no':'yes');render()},
  'parent-entry':async()=>{if(connected){await googleLogin()}else{role='parent';pinUnlocked=false;render()}},

@@ -4,7 +4,7 @@
  */
 (()=>{'use strict';
 const cfg=globalThis.NEXT_MOVE_CONFIG||{};
-const connected=!!(cfg.firebase?.apiKey&&cfg.firebase?.projectId&&cfg.apiUrl);
+const connected=false; // Mode autonome : aucun service distant nécessaire.
 const $=s=>document.querySelector(s);
 const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const dayNow=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Paris',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
@@ -48,7 +48,7 @@ function defaultConfig(enable=false){return {
  periods:[],exceptions:[],customChallenges:[],rankMode:1,
  milestones:{guided:70,autonomous:85},autoChallenges:true
 };}
-const demoKey='nextmove_demo_v1';
+const demoKey='nextmove_demo_v1'; // Conserver cette clé pour préserver les progrès existants
 let db=JSON.parse(localStorage.getItem(demoKey)||'null')||{config:defaultConfig(true),runs:[],ledger:[],wallet:{xp:0,coins:0},requests:[],homework:[],plans:[],role:'child'};
 const saveDemo=()=>localStorage.setItem(demoKey,JSON.stringify(db));
 let data={role:'child',config:defaultConfig(false),wallet:{xp:0,coins:0},runs:[],requests:[],homework:[],ledger:[],plans:[],paired:false};
@@ -89,15 +89,16 @@ function render(){if(!initDone)return;
  if(connected&&!data.paired&&role==='child'){renderPairing();return;}
  if(parentGuard()){renderPin();return;}
  const lev=levelInfo(data.wallet.xp),isParent=role==='parent';
- const nav=isParent?[['stats','📊','Bilan'],['tasks','🎯','Missions'],['calendar','📅','Planning'],['rewards','🪙','Boutique'],['settings','⚙️','Réglages']]:[['today','⚡','Mission'],['planning','📋','Journée'],['challenges','🏆','Défis'],['shop','🪙','Boutique'],['profile','🚀','Profil']];
+ const nav=isParent?[['stats','📊','Bilan'],['tasks','🎯','Missions'],['calendar','📅','Planning'],['rewards','🪙','Boutique'],['settings','⚙️','Réglages']]:[['today','⚡','Mission'],['planning','📋','Journée'],['challenges','🏆','Défis'],['shop','🪙','Boutique'],['profile','🚀','Profil'],['parent-settings','⚙️','Réglages']];
  const current=isParent?adminTab:tab;
- const header=`<div class="header"><div class="mark"><div class="mark-icon">ϟ</div><div><div class="brand">NEXT MOVE</div><div class="brand-sub">TA PROCHAINE ACTION. TON PROCHAIN NIVEAU.</div></div></div><div class="header-actions"><button class="iconbtn" data-action="toggle-sound" title="Activer/couper le son">${localStorage.getItem('nm_mute')==='yes'?'🔇':'🔊'}</button>${isParent?`<button class="iconbtn" data-action="switch-child" title="Quitter le mode parent">👋</button>`:`<button class="iconbtn" data-action="parent-entry" title="Espace parent">🔐</button>`}</div></div>`;
- const demo=!connected?'<div class="notice warn"><b>MODE DÉMONSTRATION</b> — Données sur cet appareil uniquement. Pour synchroniser vos téléphones et envoyer des notifications réelles, configurez Firebase et Cloudflare.</div>':'';
+ const header=`<div class="header"><div class="mark"><div class="mark-icon">ϟ</div><div><div class="brand">NEXT MOVE</div><div class="brand-sub">TA PROCHAINE ACTION. TON PROCHAIN NIVEAU.</div></div></div><div class="header-actions"><button class="iconbtn" data-action="toggle-sound" title="Activer/couper le son">${localStorage.getItem('nm_mute')==='yes'?'🔇':'🔊'}</button>${isParent?`<button class="iconbtn" data-action="switch-child" title="Quitter le mode parent">👋</button>`:`<button class="iconbtn" data-action="parent-entry" title="Paramètres parentaux (code PIN)">⚙️</button>`}</div></div>`;
+ const demo=''; // Le mode local est désormais le fonctionnement normal.
  const page=isParent?renderAdmin():renderChild();
  $('#app').innerHTML=`<main class="app">${header}${demo}${page}</main><nav class="tabs" aria-label="Navigation">${nav.map(([key,icon,label])=>`<button data-action="tab" data-id="${key}" class="${current===key?'active':''}"><span>${icon}</span>${label}</button>`).join('')}</nav>`;
  window.scrollTo({top:scroll,behavior:'instant'});clockTick();
 }
-function renderChild(){switch(tab){case 'planning':return renderPlanning();case 'challenges':return renderChallenges();case 'shop':return renderShop();case 'profile':return renderProfile();default:return renderToday();}}
+function renderChild(){switch(tab){case 'planning':return renderPlanning();case 'challenges':return renderChallenges();case 'shop':return renderShop();case 'profile':return renderProfile();case 'parent-settings':return renderParentAccess();default:return renderToday();}}
+function renderParentAccess(){return `<section class="hero center"><div style="font-size:56px">🔐</div><h1>PARAMÈTRES PARENTAUX</h1><p>Accès réservé au parent. Crée ou saisis ton code PIN personnel à 4 chiffres pour gérer les missions, horaires, récompenses et validations.</p><button class="btn primary block" data-action="parent-entry">⚙️ Ouvrir les paramètres avec mon code</button></section><section class="card" style="margin-top:14px"><h2>📱 NEXT MOVE SUR CE TÉLÉPHONE</h2><p class="small muted">Les données sont enregistrées ici. Pas besoin de compte Google, de Firebase ou de Cloudflare. Pense à exporter régulièrement une sauvegarde depuis les paramètres parentaux.</p></section>`}
 function renderToday(){
  const all=tasksFor(activeDay),finished=all.filter(t=>isDone(runFor(t.id))).length,mission=getActive(),level=levelInfo(data.wallet.xp);
  let hero='';
@@ -158,13 +159,13 @@ function renderAdminRewards(){return `${adminHeading('🪙 BOUTIQUE & DÉFIS','�
  <div class="stack">${data.config.rewards.map(r=>`<div class="reward"><span class="emoji">${escape(r.icon)}</span><div class="info"><strong>${escape(r.name)}</strong><p>${r.cost} pièces · ${r.active===false?'Inactif':'Actif'}</p></div><button class="btn mini" data-action="edit-reward" data-id="${r.id}">Modifier</button></div>`).join('')}</div>
  <section class="card" style="margin-top:14px"><h2>Défis créés par le parent</h2>${(data.config.customChallenges||[]).map(c=>`<div class="mission"><span>🎯</span><div class="info"><strong>${escape(c.name)}</strong><p>${escape(c.description)} · ${c.coins} pièces</p></div><button class="btn mini success" data-action="award-challenge" data-id="${c.id}">+ pièces</button><button class="btn mini danger" data-action="del-challenge" data-id="${c.id}">×</button></div>`).join('')||'<p class="muted small">Aucun défi ajouté.</p>'}</section>`}
 function renderAdminSettings(){return `${adminHeading('⚙️ RÉGLAGES','Gestion du compte familial, du jumelage, de PRONOTE et de la sauvegarde.')}
- <section class="card"><h2>Compte parent</h2><p class="small muted">${escape(auth?.currentUser?.email||(!connected?'Démonstration locale':'Connexion Google'))}</p><div class="row wrap"><button class="btn" data-action="change-pin">Changer mon PIN</button><button class="btn" data-action="export">Exporter les données</button>${connected?'<button class="btn danger" data-action="logout">Déconnexion Google</button>':''}</div></section>
- <section class="card" style="margin-top:14px"><h2>📱 Jumeler le téléphone de Mahé</h2><p class="small muted">Génère un code temporaire, puis saisis-le depuis son application NEXT MOVE. Le code expire après 10 minutes.</p>${connected?'<button class="btn primary" data-action="pair-code">Générer un code de jumelage</button>':'<p class="notice warn">Le jumelage nécessite la configuration des services. Ici, seul le mode démonstration est actif.</p>'}<div id="pair-code"></div></section>
+ <section class="card"><h2>Compte parent</h2><p class="small muted">Stockage local sur le téléphone de Mahé</p><div class="row wrap"><button class="btn" data-action="change-pin">Changer mon PIN</button><button class="btn" data-action="export">Exporter ma sauvegarde</button><button class="btn" data-action="import">Restaurer une sauvegarde</button><input id="backup-import" type="file" accept="application/json,.json" hidden>${connected?'<button class="btn danger" data-action="logout">Déconnexion Google</button>':''}</div></section>
+ <section class="card" style="margin-top:14px"><h2>📱 Données sur cet appareil</h2><p class="small muted">Les missions, XP, récompenses et historiques restent sur ce Samsung. Exporter une sauvegarde est indispensable avant de changer de téléphone ou d'effacer les données de Chrome. Le PIN est une protection d'interface, pas un coffre-fort inviolable.</p><div id="pair-code"></div></section>
  <section class="card" style="margin-top:14px"><h2>Configuration générale</h2><div class="field"><label>Prénom</label><input id="child-name" value="${escape(data.config.childName||'Mahé')}" maxlength="30"></div><div class="field"><label>URL PRONOTE (facultatif)</label><input id="pronote-url" value="${escape(data.config.pronoteUrl||'')}" placeholder="https://..."></div><div class="field"><label>Niveau d’autonomie</label><select id="rank-mode"><option value="1" ${data.config.rankMode===1?'selected':''}>Guidé</option><option value="2" ${data.config.rankMode===2?'selected':''}>Semi-autonome</option><option value="3" ${data.config.rankMode===3?'selected':''}>Autonome</option></select></div><button class="btn primary" data-action="save-settings">Enregistrer</button></section>
  <section class="card" style="margin-top:14px"><div class="row between"><h2 style="margin:0">📁 Catégories éditables</h2><button class="btn mini primary" data-action="category-add">+ Catégorie</button></div><div class="mission-list" style="margin-top:12px">${categoryList().map((c,i)=>`<div class="mission"><span class="time">${i+1}</span><div class="info"><strong>${escape(c)}</strong></div><button class="btn mini" data-action="category-edit" data-id="${i}">Modifier</button><button class="btn mini danger" data-action="category-delete" data-id="${i}">×</button></div>`).join('')}</div></section>
- <section class="card" style="margin-top:14px"><h2>🔔 Notifications</h2><p class="small muted">Mahé doit activer les notifications depuis son téléphone. Une seule notification-défi par mission, hors des plages silencieuses.</p><p class="small muted">Notifications push programmées uniquement après mise en service du Worker Cloudflare et connexion Internet.</p></section>`}
+ <section class="card" style="margin-top:14px"><h2>🔔 Notifications</h2><p class="small muted">Mahé doit activer les notifications depuis son téléphone. Une seule notification-défi par mission, hors des plages silencieuses.</p><p class="small muted">Sans serveur, les rappels apparaissent uniquement lorsque NEXT MOVE est ouvert. Aucune notification garantie lorsque l’application est fermée.</p></section>`}
 function renderPairing(){$('#app').innerHTML=`<main class="app"><div class="setup"><div class="mark" style="justify-content:center"><div class="mark-icon">ϟ</div><div class="brand">NEXT MOVE</div></div><h1>Prêt pour l’aventure ?</h1><p>Associe ce téléphone à ton espace familial ou connecte-toi comme parent.</p><section class="card"><h2>🎮 Je suis Mahé</h2><div class="field"><label>Code donné par le parent</label><input id="join-code" placeholder="CODE DE JUMELAGE" autocomplete="off"></div><button class="btn primary block" data-action="claim-pair">Associer mon téléphone</button></section><section class="card" style="margin-top:12px"><h2>🔐 Je suis le parent</h2><button class="btn block" data-action="google-login">Me connecter avec Google</button></section></div></main>`}
-function renderPin(){const set=!!localStorage.getItem(pinKey);$('#app').innerHTML=`<main class="app"><section class="setup card"><div class="center" style="font-size:45px">🔐</div><h1>${set?'Accès parent':'Créer ton PIN'}</h1><p>${set?'Saisis ton code personnel à 4 chiffres.':'Choisis un PIN à 4 chiffres. Ton compte Google protège réellement les données côté serveur.'}</p><div class="field"><label>${set?'Code parent':'Nouveau code'}</label><input id="pin-entry" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="••••"></div>${set?'':`<div class="field"><label>Confirmer le code</label><input id="pin-confirm" type="password" inputmode="numeric" maxlength="4" placeholder="••••"></div>`}<button class="btn primary block" data-action="pin-submit">${set?'Déverrouiller':'Créer le PIN'}</button>${!connected?'<button class="btn block" data-action="switch-child">Retour à Mahé</button>':''}</section></main>`}
+function renderPin(){const set=!!localStorage.getItem(pinKey);$('#app').innerHTML=`<main class="app"><section class="setup card"><div class="center" style="font-size:45px">🔐</div><h1>${set?'Accès parent':'Créer ton PIN'}</h1><p>${set?'Saisis ton code personnel à 4 chiffres.':'Choisis ton code à 4 chiffres. Il protège les réglages de cette application sur ce téléphone.'}</p><div class="field"><label>${set?'Code parent':'Nouveau code'}</label><input id="pin-entry" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="••••"></div>${set?'':`<div class="field"><label>Confirmer le code</label><input id="pin-confirm" type="password" inputmode="numeric" maxlength="4" placeholder="••••"></div>`}<button class="btn primary block" data-action="pin-submit">${set?'Déverrouiller':'Créer le PIN'}</button>${!connected?'<button class="btn block" data-action="switch-child">Retour à Mahé</button>':''}</section></main>`}
 async function hashPin(pin){const salt='NEXT MOVE LOCAL PIN v1';const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(salt+pin));return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('')}
 function openModal(html){$('#modal-root').innerHTML=`<div class="modal-backdrop" data-backdrop="true"><section class="modal"><button class="modal-close" data-action="close-modal">×</button>${html}</section></div>`;window.scrollTo(0,0)}
 const closeModal=()=>$('#modal-root').innerHTML='';
@@ -177,7 +178,7 @@ function taskModal(identifier){const t=data.config.tasks.find(t=>t.id===identifi
  ${field('Nom de la mission','title','text',t.title,'required maxlength="80"')}<div class="form-grid">${selectField('Catégorie','category',categoryList().map((x,i)=>[i,x]),t.category)}${field('Début prévu','time','time',t.time,'required')}${field('Durée chrono (minutes)','minutes','number',t.minutes,'min="1" max="240" required')}${field('Échéance limite (facultative)','deadline','time',t.deadline||'')}${selectField('Priorité','priority',[[1,'1 · Obligatoire'],[2,'2 · Important'],[3,'3 · Flexible']],t.priority)}${selectField('Validation','validation',[['self','Autovalidation'],['parent','Approbation parentale']],t.validation)}${selectField('Non terminée','carry',[['expire','Expire'],['carry','Reporter'],['keep','Conserver jusqu’au bout']],t.carry)}</div>
  <div class="divider"></div><h3>Barème personnalisable</h3><div class="form-grid">${field('XP mission','xpBase','number',t.xpBase??10,'min="0" max="100"')}${field('XP rapidité','xpSpeed','number',t.xpSpeed??10,'min="0" max="100"')}${field('XP initiative','xpInitiative','number',t.xpInitiative??15,'min="0" max="100"')}${field('Pièces mission','coinsBase','number',t.coinsBase??5,'min="0" max="50"')}${field('Pièces rapidité','coinsSpeed','number',t.coinsSpeed??3,'min="0" max="50"')}${field('Pièces initiative','coinsInitiative','number',t.coinsInitiative??5,'min="0" max="50"')}</div><div class="field"><label>Jours actifs</label>${dayChecks(t.days||[])}</div><div class="field"><label>Types de journée</label>${modeChecks(t.modes||[])}</div>
  <div class="field"><label>Sous-étapes (une par ligne)</label><textarea name="steps" placeholder="Exemple : Préparer la trousse">${escape((t.steps||[]).join('\n'))}</textarea></div>
- <div class="checks"><label class="check"><input type="checkbox" name="enabled" ${t.enabled?'checked':''}>Mission active</label><label class="check"><input type="checkbox" name="notify" ${t.notify?'checked':''}>Défi push</label><label class="check"><input type="checkbox" name="locked" ${t.locked?'checked':''}>Horaire non déplaçable</label></div>
+ <div class="checks"><label class="check"><input type="checkbox" name="enabled" ${t.enabled?'checked':''}>Mission active</label><label class="check"><input type="checkbox" name="notify" ${t.notify?'checked':''}>Rappel-défi dans l’application</label><label class="check"><input type="checkbox" name="locked" ${t.locked?'checked':''}>Horaire non déplaçable</label></div>
  <div class="form-actions"><button type="button" class="btn" data-action="close-modal">Annuler</button><button type="submit" class="btn primary">Enregistrer</button></div></form>${identifier?`<div class="divider"></div><button class="btn mini danger" data-action="delete-task" data-id="${escape(identifier)}">Supprimer cette mission</button>`:''}`);
 }
 function rewardModal(identifier){const r=data.config.rewards.find(r=>r.id===identifier)||{name:'',cost:100,icon:'🎁',active:true};openModal(`<h2>🪙 Récompense</h2><form id="reward-form" data-id="${escape(identifier||'')}">${field('Nom','name','text',r.name,'required maxlength="100"')}${field('Emoji','icon','text',r.icon,'maxlength="8"')}${field('Prix en pièces','cost','number',r.cost,'min="1" max="10000" required')}<label class="check"><input type="checkbox" name="active" ${r.active!==false?'checked':''}>Récompense disponible</label><div class="form-actions"><button type="button" class="btn" data-action="close-modal">Annuler</button><button class="btn primary" type="submit">Enregistrer</button></div></form>`)}
@@ -310,7 +311,8 @@ const actions={
  'pair-code':async()=>{try{const x=await call('/pair/create','POST',{});$('#pair-code').innerHTML=`<div class="notice" style="margin-top:15px;text-align:center"><b style="font-size:23px;letter-spacing:3px">${escape(x.code)}</b><p>Valable ${x.expiresInMinutes} minutes. À saisir sur le téléphone de Mahé.</p></div>`}catch(e){toast(e.message)}},
  'claim-pair':async()=>{const code=($('#join-code')?.value||'').trim();if(!code)return toast('Saisis le code de jumelage');try{await call('/pair/claim','POST',{code});await refresh(true)}catch(e){toast('Jumelage : '+e.message)}},
  'logout':()=>signOut(),
- 'export':()=>{const blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),data},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='next-move-sauvegarde-'+dayNow()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),500)},
+ 'export':()=>{const blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),app:'next-move-local',version:1,data:{...db,role:'child'}},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='next-move-sauvegarde-'+dayNow()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),500)},
+ 'import':()=>$('#backup-import')?.click(),
  'avatar':async(_,el)=>{try{await call('/customize','POST',{kind:'avatar',value:el.dataset.id});await refresh(true);toast('Avatar sélectionné !')}catch(e){toast(e.message)}},
  'frame':async(_,el)=>{try{await call('/customize','POST',{kind:'frame',value:el.dataset.id});await refresh(true);toast('Cadre sélectionné !')}catch(e){toast(e.message)}},
  'title':async(_,el)=>{try{await call('/customize','POST',{kind:'title',value:el.dataset.id});await refresh(true);toast('Titre sélectionné !')}catch(e){toast(e.message)}},
@@ -320,6 +322,35 @@ async function resolveRun(id,approve){try{await call('/run/approve','POST',{id,a
 async function resolveReward(requestId,approve){try{await call('/reward/resolve','POST',{requestId,approve});await refresh(true);toast(approve?'🎁 Récompense accordée':'Demande refusée')}catch(e){toast(e.message)}}
 function futureDate(s,n){const d=new Date(s+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)}
 function penaltyModal(){const misses=tasksFor(dayNow()).filter(t=>!runFor(t.id,dayNow()));openModal(`<h2>🪙 Pénalité sur décision parentale</h2><p class="helper">Aucune perte de XP ni de trophées. Retrait maximal de 20 pièces, uniquement après ton accord.</p><form id="penalty-form">${selectField('Mission concernée','taskId',(misses.length?misses:tasksFor(dayNow())).map(t=>[t.id,t.title]),misses[0]?.id||'')}${field('Date','day','date',dayNow(),'required')}${field('Pièces à retirer','coins','number',3,'min="1" max="20" required')}<div class="form-actions"><button type="button" class="btn" data-action="close-modal">Annuler</button><button class="btn danger">Confirmer la pénalité</button></div></form>`)}
+async function restoreBackup(file){
+ if(!file||role!=='parent'||!pinUnlocked)return toast('Accès parent requis');
+ if(file.size>2_000_000)return toast('Sauvegarde trop volumineuse');
+ try{
+  const x=JSON.parse(await file.text()),d=x?.data;
+  if(!d||!d.config||!Array.isArray(d.config.tasks)||!Array.isArray(d.config.rewards)||!Array.isArray(d.runs)||!Array.isArray(d.requests)||!d.wallet||!Array.isArray(d.homework)||!Array.isArray(d.plans))throw Error('Fichier NEXT MOVE non reconnu');
+  if(!confirm('Restaurer cette sauvegarde remplacera TOUTES les données actuelles de NEXT MOVE sur ce téléphone. Continuer ?'))return;
+  db={config:d.config,runs:d.runs,ledger:Array.isArray(d.ledger)?d.ledger:[],wallet:d.wallet,requests:d.requests,homework:d.homework,plans:d.plans,role:'child'};
+  saveDemo();data={...db};role='child';pinUnlocked=false;tab='today';render();toast('✅ Sauvegarde restaurée.');
+ }catch(e){toast('Import impossible : '+e.message)}
+}
+function checkLocalChallenges(){
+ if(role!=='child'||document.visibilityState!=='visible')return;
+ const day=dayNow(),now=localTime(),minute=minutes(now),dayIdx=dayOf(day),mode=modeFor(day);
+ const quiet=(data.config.quiet||[]).some(q=>{
+  if(!(q.modes||[]).includes(mode))return false;
+  const start=minutes(q.start),end=minutes(q.end);
+  if(start<=end)return (q.days||[]).includes(dayIdx)&&minute>=start&&minute<end;
+  return minute>=start?(q.days||[]).includes(dayIdx):(q.days||[]).includes((dayIdx+6)%7)&&minute<end;
+ });
+ if(quiet)return;
+ for(const t of tasksFor(day)){
+  if(!t.notify||runFor(t.id,day)||Math.abs(minute-minutes(t.time))>0)continue;
+  const key='nm_local_notice_'+day+'_'+t.id;
+  if(localStorage.getItem(key))continue;
+  localStorage.setItem(key,'1');
+  toast('⚡ DÉFI NEXT MOVE : '+t.title+' — À toi de jouer !');beep(740,.1);
+ }
+}
 function clockTick(){const el=$('#timer-num');if(!el)return;const taskId=el.dataset.task,t=tasksFor(activeDay).find(x=>x.id===taskId),r=runFor(taskId,activeDay);if(!t||!r||r.status!=='running')return;
  const remaining=t.minutes*60-Math.floor((Date.now()-r.started_at)/1000);el.textContent=(remaining<0?'+':'')+pretty(remaining);el.classList.toggle('overtime',remaining<0);
  const cap=$('#timer-caption');if(cap)cap.textContent=remaining<0?'DÉPASSEMENT · MISSION TOUJOURS ACTIVE':'TEMPS RESTANT';const progress=$('#timer-progress');if(progress)progress.style.width=Math.min(100,Math.max(0,100*(1-remaining/(t.minutes*60))))+'%';}
@@ -346,11 +377,13 @@ async function bootstrap(){
   event.preventDefault();const action=actions[target.dataset.action];if(action)try{await action(event,target)}catch(e){toast('Erreur : '+e.message)}
  });
  document.addEventListener('submit',onForm);
+ document.addEventListener('change',async e=>{if(e.target.id==='backup-import')await restoreBackup(e.target.files?.[0]);});
  setInterval(clockTick,1000);
+ setInterval(checkLocalChallenges,15000);
  setInterval(async()=>{if(connected&&navigator.onLine&&initDone&&data.paired){await refresh(true);storeCache()}},30000);
  window.addEventListener('online',async()=>{online=true;await flushOffline();await refresh(true)});
  window.addEventListener('offline',()=>{online=false;toast('Mode hors ligne : les défis restent accessibles')});
- document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&connected&&data.paired)refresh(true)});
+ document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&role==='parent'){role='child';pinUnlocked=false;tab='today';render();}else if(document.visibilityState==='visible'){checkLocalChallenges();}});
  // La permission notification est demandée uniquement après un clic volontaire de Mahé.
 
 }

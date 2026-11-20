@@ -126,7 +126,7 @@ function tasksFor(s){const m=modeFor(s),d=dayOf(s),ex=(data.config.exceptions||[
 }
 const runFor=(taskId,day=activeDay)=>data.runs.find(r=>r.task_id===taskId&&r.day===day);
 const isDone=r=>r&&['complete','pending_parent','rejected'].includes(r.status);
-const getActive=(s=activeDay)=>{const tasks=tasksFor(s),running=tasks.find(t=>runFor(t.id,s)?.status==='running');if(running)return running;const pending=tasks.filter(t=>!runFor(t.id,s));if(!pending.length)return null;if(s!==dayNow())return pending[0];const now=minutes(localTime());const relevant=pending.filter(t=>minutes(t.time)>=now-90||t.carry==='keep');return relevant.find(t=>minutes(t.time)<=now)||relevant[0]||null;};
+const getActive=(s=activeDay)=>{const tasks=tasksFor(s),running=tasks.find(t=>runFor(t.id,s)?.status==='running');if(running)return running;const pending=tasks.filter(t=>!runFor(t.id,s));if(!pending.length)return null;if(s!==dayNow())return pending[0];const now=minutes(localTime());const relevant=pending.filter(t=>minutes(t.time)>=now-90||t.carry==='keep'||t.homeworkLauncher);return relevant.find(t=>minutes(t.time)<=now)||relevant[0]||null;};
 function walletBadge(){return `<span class="pill gold">🪙 ${Number(data.wallet.coins)||0}</span><span class="pill cyan">⚡ ${Number(data.wallet.xp)||0} XP</span>`}
 function parentGuard(){return role==='parent'&&!pinUnlocked}
 function render(){if(!initDone)return;
@@ -386,6 +386,7 @@ async function refresh(quiet=false){if(!initDone)return;try{const result=await c
 function storeCache(){if(connected){const safe={config:data.config,runs:data.runs,wallet:data.wallet,homework:data.homework,requests:data.requests,paired:data.paired};localStorage.setItem('nm_state_cache',JSON.stringify(safe))}}
 async function changeTab(which){if(role==='parent')adminTab=which;else {tab=which;if(which==='today')activeDay=dayNow();}render();window.scrollTo(0,0)}
 async function startTask(taskId){const day=activeDay;if(day!==dayNow())return toast('Lance les missions du jour uniquement.');
+ if(tasksFor(day).find(t=>t.id===taskId)?.homeworkLauncher){tab='homework';render();return;}
  const old=runFor(taskId,day);if(old)return toast('Cette mission est déjà commencée.');
  try{const r=await call('/run/start','POST',{taskId,day});if(!data.runs.some(x=>x.id===r.run.id))data.runs.unshift(r.run);render();beep(700,.1);toast('⚡ Chrono lancé, c’est parti !')}
  catch(e){if(!navigator.onLine){const obj={id:'offline-'+rand(),task_id:taskId,day,started_at:Date.now(),planned_at:Date.now(),status:'running',offline:true};data.runs.unshift(obj);localStorage.setItem('nm_offline_running',JSON.stringify(obj));render();toast('Hors ligne · chrono local actif. Validation parentale après synchronisation.')}else toast('Impossible de démarrer : '+e.message)}

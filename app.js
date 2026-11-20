@@ -53,6 +53,7 @@ db.homeworkBlocks=Array.isArray(db.homeworkBlocks)?db.homeworkBlocks:[];
 db.wallet=db.wallet||{xp:0,coins:0};
 if(!Number.isFinite(db.wallet.xpBank))db.wallet.xpBank=Math.max(0,Number(db.wallet.xp)||0);
 db.exchanges=Array.isArray(db.exchanges)?db.exchanges:[];
+if(db.config?.overrunPolicy==='none')db.config.overrunPolicy='propose';
 db.claimedLevels=Array.isArray(db.claimedLevels)?db.claimedLevels:Array.from({length:levelInfo(Number(db.wallet?.xp)||0).n},(_,i)=>i+1);
 const saveDemo=()=>localStorage.setItem(demoKey,JSON.stringify(db));
 let data={role:'child',config:defaultConfig(false),wallet:{xp:0,coins:0,xpBank:0},exchanges:[],runs:[],requests:[],homework:[],ledger:[],plans:[],paired:false};
@@ -603,31 +604,53 @@ async function demoCall(path,method,body){let result={ok:true};
  }
  else if(path==='/run/approve'){
   const r=db.runs.find(x=>x.id===body.id&&x.status==='pending_parent');
-  if(r){
-   r.status=body.approve?'complete':'rejected';
-   if(body.approve){
-    creditXp(r.xp);db.wallet.coins+=r.coins;
-    if(r.homeworkActual)hwApplyCompleted(r);
-    result.levelCoins=applyLevelRewards();
-   }else{
-    r.penaltyDecision='waived';
-   }
+  if(!r)throw Error('Cette validation n’est plus disponible.');
+  await verifyParentPin(body.pin);
+  r.status=body.approve?'complete':'rejected';
+  if(body.approve){
+   creditXp(r.xp);db.wallet.coins+=r.coins;
+   if(r.homeworkActual)hwApplyCompleted(r);
+   result.levelCoins=applyLevelRewards();
   }
+  if(r.penaltyDecision==='pending'){
+   if(body.applyPenalty){
+    const proposed=r.penaltyProposal||{};
+    const xp=Math.round(clamp(Number(proposed.xp)||0,0,20)),coins=Math.round(clamp(Number(proposed.coins)||0,0,20));
+    r.penaltyApplied={xp:Math.min(spendableXp(db.wallet),xp),coins:Math.min(db.wallet.coins,coins)};
+    db.wallet.xpBank=Math.max(0,spendableXp(db.wallet)-xp);
+    db.wallet.coins=Math.max(0,db.wallet.coins-coins);
+    r.penaltyDecision='approved';
+   }else r.penaltyDecision='waived';
+  }
+  result.status=r.status;
+  result.points={xp:r.xp,coins:r.coins};
+  result.penaltyApplied=r.penaltyApplied||null;
  }
  else if(path==='/run/penalty-resolve'){
+  await verifyParentPin(body.pin);
   const r=db.runs.find(x=>x.id===body.id&&x.penaltyDecision==='pending'&&x.status==='complete');
   if(!r)throw Error('Pénalité introuvable');
   if(body.approve){
    const proposed=r.penaltyProposal||{};
    const xp=Math.round(clamp(Number(proposed.xp)||0,0,20));
    const coins=Math.round(clamp(Number(proposed.coins)||0,0,20));
-   r.penaltyApplied={xp:Math.min(db.wallet.xp,xp),coins:Math.min(db.wallet.coins,coins)};
+   r.penaltyApplied={xp:Math.min(spendableXp(db.wallet),xp),coins:Math.min(db.wallet.coins,coins)};
    db.wallet.xpBank=Math.max(0,spendableXp(db.wallet)-xp);
    db.wallet.coins=Math.max(0,db.wallet.coins-coins);
    r.penaltyDecision='approved';
   }else r.penaltyDecision='waived';
  }
-
+ else if(path==='/xp/convert'){
+  const amount=Number(body.coins),rate=Number(db.config.xpPerCoin)||20;
+  if(!Number.isInteger(amount)||amount<1||amount>1000)throw Error('Choisis entre 1 et 1 000 pièces.');
+  if(!Number.isInteger(rate)||rate<1||rate>1000)throw Error('Taux de conversion invalide.');
+  const cost=amount*rate;
+  if(spendableXp(db.wallet)<cost)throw Error('Pas assez d’XP disponibles.');
+  db.wallet.xpBank=spendableXp(db.wallet)-cost;db.wallet.coins+=amount;
+  const entry={id:rand(),xp:cost,coins:amount,rate,created_at:Date.now()};
+  db.exchanges.unshift(entry);db.exchanges=db.exchanges.slice(0,100);
+  result.exchange=entry;
+ }
  else if(path==='/plan/set'){const i=db.plans.findIndex(x=>x.day===body.day);const plan={day:body.day,plan_json:JSON.stringify(body.plan)};if(i>=0)db.plans[i]=plan;else db.plans.push(plan)}
  else if(path==='/customize'){
   const options=LEVEL_REWARDS[body.kind],selected=options?.find(x=>x[0]===body.value);

@@ -6,8 +6,7 @@ const assert=require('node:assert/strict');
 let source=fs.readFileSync('app.js','utf8');
 const closing=/bootstrap\(\);\s*\}\)\(\);\s*$/;
 assert.match(source,closing,'Application bootstrap marker should exist');
-source=source.replace(closing,String.raw\`globalThis.__test={db,dayNow,futureDate,hwReward,hwSum,hwAvailable,hwApplyCompleted,tasksFor,runFor,demoCall,setData:()=>{data={...db}}};
-})();\`.replaceAll('\\\`','\`'));
+source=source.replace(closing, "globalThis.__test={db,dayNow,futureDate,hwReward,hwSum,hwAvailable,hwApplyCompleted,tasksFor,runFor,demoCall,setData:()=>{data={...db}}};\n})();");
 const store=new Map();
 let uid=0;
 const context={

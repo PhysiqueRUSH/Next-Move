@@ -1,0 +1,80 @@
+/* NEXT MOVE 2 — une mission, une action, zéro distraction */
+:root{--bg:#080e1b;--panel:#111e33;--panel2:#15253e;--stroke:#2a3c58;--muted:#a3b5cd;--cyan:#50e6f0}
+body{background:radial-gradient(ellipse 420px 260px at 45% -90px,#173958 0%,transparent 80%),#080e1b}
+.ambient{opacity:.11}
+.app{max-width:760px;padding:16px 16px calc(104px + env(safe-area-inset-bottom))}
+.header{margin-bottom:19px;gap:7px}
+.header .brand{font-size:20px;letter-spacing:1.4px}
+.header .brand-sub{display:none}
+.header .mark-icon{width:39px;height:39px;border-radius:12px;font-size:26px}
+.header-actions{gap:8px}
+.header .iconbtn{width:42px;height:42px;background:#152238}
+.header .nm-avatar-button{background:#1c2c49;border-color:#465b7b;font-size:23px}
+.tabs{max-width:760px;margin:0 auto;justify-content:center;gap:4px;background:#0e1829f7;padding:9px 10px calc(9px + env(safe-area-inset-bottom))}
+.tabs button{flex:1;max-width:155px;width:auto;padding:9px 2px;font-size:11px;font-weight:750;border-radius:13px}
+.tabs button span{font-size:23px}
+.tabs button.active{background:#192d45;color:#7bf7fa;box-shadow:inset 0 0 0 1px #327287}
+.child-app{max-width:600px}
+.nm-topbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:4px 0 15px}
+.nm-topbar .nm-greeting{font-size:13px;color:#c9d6ea;font-weight:650}
+.nm-topbar .nm-saldo{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:800;color:#ffe29b}
+.nm-topbar .nm-saldo strong{color:#d3f6ff}
+.nm-day-progress{margin:0 0 18px}
+.nm-day-progress .nm-progress-line{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:12px;color:#bed0e7;margin-bottom:9px}
+.nm-day-progress .nm-progress-line strong{color:#e9faff;font-size:12px}
+.nm-day-progress .progress{height:7px;background:#1c2b42}
+.nm-mission-card{position:relative;overflow:hidden;border-radius:27px;padding:27px 22px 24px;background:linear-gradient(145deg,#1a2e49,#121c32 75%,#171c3a);border:1px solid #3e607f;box-shadow:0 15px 55px #03071395,0 0 36px #38cce418}
+.nm-mission-card:before{content:"";position:absolute;right:-82px;top:-90px;width:205px;height:205px;border:1px solid #63f2f641;border-radius:50%;box-shadow:0 0 0 28px #2dedf607,0 0 0 62px #2dedf606;pointer-events:none}
+.nm-mission-card .nm-eyebrow{color:#73f9f8;font-size:11px;font-weight:850;text-transform:uppercase;letter-spacing:2px;margin:0 0 15px;display:flex;align-items:center;gap:8px}
+.nm-pulse{width:8px;height:8px;border-radius:50%;background:#53f6e4;box-shadow:0 0 0 4px #41ede71d,0 0 18px #33f4e6}
+.nm-mission-title{font-size:clamp(29px,7vw,40px);font-weight:900;line-height:1.12;letter-spacing:-.8px;color:#fff;overflow-wrap:anywhere;margin:0 0 12px}
+.nm-mission-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:#c1d3ea;margin:0 0 10px}
+.nm-mission-meta .dot{opacity:.4}
+.nm-timer-stage{text-align:center;padding:15px 0 3px}
+.nm-mission-card .timer{font-size:clamp(64px,17vw,91px);line-height:1;letter-spacing:-3px;margin:12px 0 7px}
+.nm-mission-card .timer-caption{font-size:11px;font-weight:850}
+.nm-mission-card .progress{height:7px;margin:19px auto 22px}
+.nm-one-action{min-height:64px!important;border-radius:17px!important;font-size:19px!important;font-weight:950!important;letter-spacing:.3px;margin-top:13px}
+.nm-mission-card .nm-reward-hint{display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;color:#d9edff;font-size:13px;font-weight:800;margin:12px 0 3px}
+.nm-reward-hint strong{color:#ffe28c}
+.nm-steps{background:#111c30ad;border:1px solid #2d4761;border-radius:13px;margin:0 0 15px;padding:12px 14px}
+.nm-steps summary{font-size:13px;color:#d7e9ff;font-weight:800;cursor:pointer}
+.nm-steps ul{margin:10px 0 0;padding-left:20px;font-size:13px;line-height:1.8;color:#e5edfb}
+.nm-underaction{font-size:12px;color:#bacbe0;text-align:center;margin-top:12px}
+.nm-bottom-nav{margin:15px 0 0}
+.nm-bottom-nav button{display:flex;align-items:center;justify-content:space-between;width:100%;padding:15px 17px;border:1px solid #2c435f;border-radius:16px;background:#142138;font-weight:800;font-size:14px}
+.nm-bottom-nav button span{font-size:20px;color:#60e4ec}
+.nm-empty-screen{text-align:center;padding:45px 20px}
+.nm-empty-screen .nm-emoji{font-size:62px;display:block;margin:0 0 16px}
+.nm-empty-screen h1{font-size:28px;margin:4px 0 10px}
+.nm-empty-screen p{color:#bad0e9;line-height:1.45}
+.nm-page-title{font-size:25px;font-weight:900;letter-spacing:-.5px;margin:3px 0 18px}
+.nm-day-picker{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#15233a;border:1px solid #2e4360;border-radius:17px;padding:9px;margin-bottom:14px;text-align:center}
+.nm-day-picker strong{font-size:13px}
+.nm-day-picker .btn{min-width:43px;min-height:41px;font-size:21px}
+.nm-simple-list{display:flex;flex-direction:column;gap:10px}
+.nm-simple-list .mission{background:#152339;border:1px solid #29405c;border-radius:17px;min-height:78px;padding:13px}
+.nm-simple-list .mission .time{font-size:13px;width:45px}
+.nm-simple-list .mission .info strong{font-size:15px}
+.nm-simple-list .mission .info p{font-size:12px;margin-top:6px}
+.nm-simple-list .mission .state{font-size:23px}
+.nm-list-action{min-width:48px;min-height:38px;font-size:12px!important;padding:6px!important}
+.nm-planner-tools{margin:15px 0;border:1px solid #2d425d;border-radius:15px;padding:14px;background:#111d30}
+.nm-planner-tools summary{cursor:pointer;font-weight:800;font-size:13px}
+.nm-planner-tools p{color:#b9cbe4;font-size:12px;line-height:1.45}
+.nm-quick-actions{display:flex;gap:10px;margin-top:16px}
+.nm-quick-actions button{flex:1}
+.child-app .reward,.child-app .trophy{box-shadow:none}
+.child-app .reward{border-radius:16px}
+.child-app .section-title h2{font-size:19px}
+.child-app .card>p.small.muted{line-height:1.5}
+.parent-app{max-width:820px}
+.parent-app .section-title{margin:10px 0 15px}
+.parent-app .section-title h2{font-size:21px}
+.parent-app .section-title>.pill{display:none}
+.parent-app .card{margin-bottom:5px}
+.parent-app .tabs button{font-size:10px}
+button:focus-visible,summary:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
+@media(min-width:750px){.app{padding:26px 25px 110px}.layout-wide{display:block}.hero{min-height:unset}}
+@media(max-width:390px){.nm-mission-card{padding:23px 16px}.nm-mission-title{font-size:29px}.nm-mission-card .timer{font-size:64px}.nm-one-action{font-size:17px!important}.tabs button{font-size:10px}}
+@media(prefers-reduced-motion:reduce){.nm-pulse{box-shadow:none}}

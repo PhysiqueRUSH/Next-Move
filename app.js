@@ -43,7 +43,7 @@ function defaultConfig(enable=false){return {
   {id:'quiet-night',start:'21:00',end:'06:25',days:[0,1,2,3,4,5,6],modes:['school','vacation','weekend']}
  ],
  periods:[],exceptions:[],customChallenges:[],rankMode:1,
- homeworkXpMax:30,homeworkCoinsMax:10,xpPerCoin:20,overrunPolicy:'propose',overrunXp:5,overrunCoins:3,
+ homeworkXpMax:30,homeworkCoinsMax:10,overrunPolicy:'propose',overrunXp:5,overrunCoins:3,
  milestones:{guided:70,autonomous:85},autoChallenges:true
 };}
 const demoKey='nextmove_demo_v1'; // Conserver cette clé pour préserver les progrès existants
@@ -114,7 +114,6 @@ function taskReward(t,goalMinutes,maxMinutes,seconds,late,overrides){
 function spendableXp(wallet=data.wallet){
  return Math.max(0,Math.floor(Number(wallet?.xpBank??wallet?.xp)||0));
 }
-function exchangeRate(){const rate=Number(data.config?.xpPerCoin);return Number.isInteger(rate)&&rate>=1&&rate<=1000?rate:20;}
 function creditXp(amount){
  const xp=Math.max(0,Math.round(Number(amount)||0));
  db.wallet.xp+=xp;db.wallet.xpBank=spendableXp(db.wallet)+xp;
@@ -405,31 +404,9 @@ function renderChallenges(){const done=data.runs.filter(r=>r.status==='complete'
  <section class="card" style="margin-top:12px"><h2>🎖️ Trophées à débloquer</h2><div class="badge-grid">${badges.map(([icon,name,fn])=>`<div class="trophy ${fn()?'':'locked'}"><span class="emoji">${icon}</span><strong>${name}</strong><span class="tiny muted">${fn()?'DÉBLOQUÉ':'À GAGNER'}</span></div>`).join('')}</div></section>
  <section class="card" style="margin-top:12px"><h2>🎯 Défis du parent</h2>${(data.config.customChallenges||[]).length?(data.config.customChallenges||[]).map(c=>`<div class="mission"><span>🎯</span><div class="info"><strong>${escape(c.name)}</strong><p>${escape(c.description)} · Récompense : ${Number(c.coins)||0} pièces (validation parentale)</p></div></div>`).join(''):'<p class="small muted">Aucun défi parental pour l’instant.</p>'}</section>`;
 }
-async function convertXpFromShop(){
- const amount=Number($('#nm-convert-amount')?.value||0);
- if(!Number.isInteger(amount)||amount<1)return toast('Choisis un nombre de pièces.');
- if(!confirm('Convertir '+(amount*exchangeRate())+' XP disponibles en '+amount+' pièce(s) ? Tes niveaux resteront acquis.'))return;
- try{
-  await call('/xp/convert','POST',{coins:amount});
-  await refresh(true);toast('🪙 Conversion réussie : +'+amount+' pièce(s) !');
- }catch(e){toast('Conversion impossible : '+e.message)}
-}
-function refreshExchangePreview(){
- const el=$('#nm-convert-preview'),input=$('#nm-convert-amount');
- if(!el||!input)return;
- const amount=Number(input.value),cost=amount*exchangeRate();
- el.textContent=Number.isInteger(amount)&&amount>=1&&amount<=1000?cost+' XP disponibles → '+amount+' pièce(s)':'Saisis un nombre valide.';
-}
 function renderShop(){
- const bank=spendableXp(),rate=exchangeRate(),available=Math.floor(bank/rate),history=(data.exchanges||[]).slice(0,5);
  return `<div class="row between" style="margin:10px 0 20px"><h2 style="margin:0">🎁 CADEAUX</h2><span class="pill gold">${data.wallet.coins} pièces</span></div>
- <section class="nm-exchange-panel"><h2>⚡ Convertir mes XP en pièces</h2>
- <p>⚡ <strong>${bank}</strong> XP disponibles · ${rate} XP = 1 pièce</p>
- <p class="small muted">Les XP de progression et tes niveaux restent acquis.</p>
- <div class="nm-exchange-controls"><input id="nm-convert-amount" type="number" inputmode="numeric" min="1" max="${Math.min(1000,Math.max(1,available))}" value="1" aria-label="Nombre de pièces à convertir"><button class="btn primary" data-action="convert-xp" ${available<1?'disabled':''}>Convertir</button></div>
- <div class="nm-exchange-preview" id="nm-convert-preview">${rate} XP disponibles → 1 pièce</div>
- ${history.length?`<details><summary>Mes dernières conversions</summary>${history.map(x=>`<p class="small muted">−${x.xp} XP · +${x.coins} 🪙</p>`).join('')}</details>`:''}
- </section>
+ <p class="small muted">Gagne des pièces en réussissant tes missions, puis choisis un cadeau.</p>
  <div class="stack">
  ${(data.config.rewards||[]).filter(r=>r.active!==false).map(r=>`<div class="reward"><span class="emoji">${escape(r.icon||'🎁')}</span><div class="info"><strong>${escape(r.name)}</strong><p>🎟️ ${r.cost} pièces · Approbation parentale</p></div><button class="btn mini primary" data-action="request-reward" data-id="${escape(r.id)}" ${data.wallet.coins<r.cost?'disabled':''}>Obtenir</button></div>`).join('')}
  <section class="card"><h2>📜 Mes demandes</h2>${(data.requests||[]).slice(0,12).map(r=>`<div class="mission"><span class="time">${r.cost}🪙</span><div class="info"><strong>${escape(data.config.rewards.find(x=>x.id===r.reward_id)?.name||'Récompense')}</strong><p>${r.status==='pending'?'⏳ En attente du parent':r.status==='approved'?'✅ Accordée':'❌ Non validée'}</p></div></div>`).join('')||'<p class="small muted">Aucune demande pour l’instant.</p>'}</section></div>`;
@@ -501,12 +478,6 @@ function renderAdminSettings(){const rules=hwRules();return `${adminHeading('⚙
  <section class="card" style="margin-top:14px"><h2>📱 Données sur cet appareil</h2><p class="small muted">Les missions, XP, récompenses et historiques restent sur ce Samsung. Exporter une sauvegarde est indispensable avant de changer de téléphone ou d'effacer les données de Chrome. Le PIN est une protection d'interface, pas un coffre-fort inviolable.</p><div id="pair-code"></div></section>
  <section class="card" style="margin-top:14px"><h2>Configuration générale</h2><div class="field"><label>Prénom</label><input id="child-name" value="${escape(data.config.childName||'Mahé')}" maxlength="30"></div><div class="field"><label>URL PRONOTE (facultatif)</label><input id="pronote-url" value="${escape(data.config.pronoteUrl||'')}" placeholder="https://..."></div><div class="field"><label>Niveau d’autonomie</label><select id="rank-mode"><option value="1" ${data.config.rankMode===1?'selected':''}>Guidé</option><option value="2" ${data.config.rankMode===2?'selected':''}>Semi-autonome</option><option value="3" ${data.config.rankMode===3?'selected':''}>Autonome</option></select></div><button class="btn primary" data-action="save-settings">Enregistrer</button></section>
 
- <section class="card" style="margin-top:14px"><h2>🪙 Échanger des XP contre des pièces</h2>
- <form id="xp-rate-form">
- ${field('Nombre d’XP nécessaires pour obtenir 1 pièce','xpPerCoin','number',exchangeRate(),'min="1" max="1000" required')}
- <p class="small muted">Mahé peut convertir ses XP disponibles dans Cadeaux. Ses niveaux et ses trophées restent acquis. Les malus touchent les XP disponibles, pas les niveaux.</p>
- <button class="btn primary block" type="submit">Enregistrer le taux de conversion</button>
- </form></section>
  <section class="card" style="margin-top:14px"><h2>📚 Gains maximum par devoir</h2>
  <form id="homework-caps">
   <div class="form-grid">
@@ -691,17 +662,7 @@ async function demoCall(path,method,body){let result={ok:true};
    r.penaltyDecision='approved';
   }else r.penaltyDecision='waived';
  }
- else if(path==='/xp/convert'){
-  const amount=Number(body.coins),rate=Number(db.config.xpPerCoin)||20;
-  if(!Number.isInteger(amount)||amount<1||amount>1000)throw Error('Choisis entre 1 et 1 000 pièces.');
-  if(!Number.isInteger(rate)||rate<1||rate>1000)throw Error('Taux de conversion invalide.');
-  const cost=amount*rate;
-  if(spendableXp(db.wallet)<cost)throw Error('Pas assez d’XP disponibles.');
-  db.wallet.xpBank=spendableXp(db.wallet)-cost;db.wallet.coins+=amount;
-  const entry={id:rand(),xp:cost,coins:amount,rate,created_at:Date.now()};
-  db.exchanges.unshift(entry);db.exchanges=db.exchanges.slice(0,100);
-  result.exchange=entry;
- }
+ else if(path==='/xp/convert'){throw Error('La conversion des XP en pièces a été supprimée.');}
  else if(path==='/plan/set'){const i=db.plans.findIndex(x=>x.day===body.day);const plan={day:body.day,plan_json:JSON.stringify(body.plan)};if(i>=0)db.plans[i]=plan;else db.plans.push(plan)}
  else if(path==='/customize'){
   const options=LEVEL_REWARDS[body.kind],selected=options?.find(x=>x[0]===body.value);
@@ -915,7 +876,6 @@ const actions={
  'open-run-approval':(_,el)=>modalApproveRun(el.dataset.id),
  'approve-run-pin':(_,el)=>resolveRunWithPin(el.dataset.id,true),
  'reject-run-pin':(_,el)=>resolveRunWithPin(el.dataset.id,false),
- 'convert-xp':()=>convertXpFromShop(),
  'toggle-sound':()=>{localStorage.setItem('nm_mute',localStorage.getItem('nm_mute')==='yes'?'no':'yes');render()},
  'parent-entry':async()=>{if(connected){await googleLogin()}else{role='parent';pinUnlocked=false;render()}},
  'google-login':()=>googleLogin(),
@@ -1105,12 +1065,6 @@ async function onForm(event){const form=event.target;if(!form.id)return;event.pr
   if(count===0)db.homeworkDates=db.homeworkDates.filter(x=>x.due!==due);else old.count=count;
   closeModal();hwPersist();
  }
- else if(form.id==='xp-rate-form'){
-  if(role!=='parent'||!pinUnlocked)throw Error('Accès parent requis');
-  const rate=Number(get('xpPerCoin'));
-  if(!Number.isInteger(rate)||rate<1||rate>1000)throw Error('Taux de conversion invalide');
-  const c=cloneConfig();c.xpPerCoin=rate;await updateConfig(c);
- }
  else if(form.id==='homework-caps'){
   if(role!=='parent'||!pinUnlocked)throw Error('Accès parent requis');
   const xp=Number(get('homeworkXpMax')),coins=Number(get('homeworkCoinsMax'));
@@ -1177,7 +1131,7 @@ async function bootstrap(){
   event.preventDefault();const action=actions[target.dataset.action];if(action)try{await action(event,target)}catch(e){toast('Erreur : '+e.message)}
  });
  document.addEventListener('submit',onForm);
- document.addEventListener('input',e=>{if(e.target.id==='goal-minutes')refreshGoalPreview();if(e.target.id==='hw-duration')updateHomeworkPreview();if(e.target.id==='nm-convert-amount')refreshExchangePreview()});
+ document.addEventListener('input',e=>{if(e.target.id==='goal-minutes')refreshGoalPreview();if(e.target.id==='hw-duration')updateHomeworkPreview();});
  document.addEventListener('change',async e=>{if(['f-scheduleMode','f-hasTimeLimit'].includes(e.target.id))refreshTaskEditorVisibility();if(e.target.id==='backup-import')await restoreBackup(e.target.files?.[0]);if(e.target.id==='hw-duration'){const x=Number(e.target.value);if(Number.isInteger(x)&&x>=1&&x<=480){homeworkDraft.estimate=x;homeworkDraft.manualEstimate=true;render();}}});
  setInterval(clockTick,1000);
  setInterval(checkLocalChallenges,15000);

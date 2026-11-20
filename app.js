@@ -43,16 +43,19 @@ function defaultConfig(enable=false){return {
   {id:'quiet-night',start:'21:00',end:'06:25',days:[0,1,2,3,4,5,6],modes:['school','vacation','weekend']}
  ],
  periods:[],exceptions:[],customChallenges:[],rankMode:1,
- homeworkXpMax:30,homeworkCoinsMax:10,overrunPolicy:'none',overrunXp:5,overrunCoins:3,
+ homeworkXpMax:30,homeworkCoinsMax:10,xpPerCoin:20,overrunPolicy:'propose',overrunXp:5,overrunCoins:3,
  milestones:{guided:70,autonomous:85},autoChallenges:true
 };}
 const demoKey='nextmove_demo_v1'; // Conserver cette clé pour préserver les progrès existants
 let db=JSON.parse(localStorage.getItem(demoKey)||'null')||{config:defaultConfig(true),runs:[],ledger:[],wallet:{xp:0,coins:0},requests:[],homework:[],plans:[],role:'child'};
 db.homeworkDates=Array.isArray(db.homeworkDates)?db.homeworkDates:[];
 db.homeworkBlocks=Array.isArray(db.homeworkBlocks)?db.homeworkBlocks:[];
+db.wallet=db.wallet||{xp:0,coins:0};
+if(!Number.isFinite(db.wallet.xpBank))db.wallet.xpBank=Math.max(0,Number(db.wallet.xp)||0);
+db.exchanges=Array.isArray(db.exchanges)?db.exchanges:[];
 db.claimedLevels=Array.isArray(db.claimedLevels)?db.claimedLevels:Array.from({length:levelInfo(Number(db.wallet?.xp)||0).n},(_,i)=>i+1);
 const saveDemo=()=>localStorage.setItem(demoKey,JSON.stringify(db));
-let data={role:'child',config:defaultConfig(false),wallet:{xp:0,coins:0},runs:[],requests:[],homework:[],ledger:[],plans:[],paired:false};
+let data={role:'child',config:defaultConfig(false),wallet:{xp:0,coins:0,xpBank:0},exchanges:[],runs:[],requests:[],homework:[],ledger:[],plans:[],paired:false};
 let homeworkDraft={items:{},estimate:20,manualEstimate:false};
 let auth=null,uid=null,role='child',tab='today',adminTab='stats',pinUnlocked=false,activeDay=dayNow(),selectedRecord=null,online=!!navigator.onLine,serviceWorker=null,initDone=false,renderVersion=0;
 const pinKey='nextmove_parent_pin_v1';
@@ -101,6 +104,20 @@ function taskReward(t,goalMinutes,maxMinutes,seconds,late,overrides){
  const speed=taskSpeedProgress(t,seconds),met=goalReached(seconds,goal),punctual=taskPunctual(t,late);
  const score=clamp(.25+.55*speed+(met?.10:0)+(punctual?.10:0),0,1);
  return {xp:Math.min(cap.xp,Math.round(cap.xp*score)),coins:Math.min(cap.coins,Math.round(cap.coins*score)),overrun:false,speed,goalReached:met,punctual};
+}
+function spendableXp(wallet=data.wallet){
+ return Math.max(0,Math.floor(Number(wallet?.xpBank??wallet?.xp)||0));
+}
+function exchangeRate(){const rate=Number(data.config?.xpPerCoin);return Number.isInteger(rate)&&rate>=1&&rate<=1000?rate:20;}
+function creditXp(amount){
+ const xp=Math.max(0,Math.round(Number(amount)||0));
+ db.wallet.xp+=xp;db.wallet.xpBank=spendableXp(db.wallet)+xp;
+}
+async function verifyParentPin(pin){
+ const current=localStorage.getItem(pinKey);
+ if(!current)throw Error('Crée d’abord un code PIN dans les paramètres parentaux.');
+ if(!/^\d{4}$/.test(String(pin||''))||await hashPin(String(pin))!==current)throw Error('Code PIN parental incorrect.');
+ return true;
 }
 function levelCoins(n){return clamp(5+3*n,8,75);}
 function applyLevelRewards(){
@@ -531,7 +548,7 @@ async function demoCall(path,method,body){let result={ok:true};
    const fixed=scheduleMode(t)==='fixed';
    r={id:rand(),task_id:body.taskId,day:body.day,
     planned_at:fixed?planned.getTime():started,started_at:started,status:'running',
-    validation:t.validation||'self',goal_minutes:goal,max_minutes:max,has_time_limit:limited,
+    validation:limited?'parent':(t.validation||'self'),goal_minutes:goal,max_minutes:max,has_time_limit:limited,
     schedule_mode:fixed?'fixed':'flexible',reward_caps:taskCaps(t),
     homework_caps:t.homeworkBlock?homeworkCaps():null};
    db.runs.unshift(r);
@@ -568,15 +585,15 @@ async function demoCall(path,method,body){let result={ok:true};
    r.finished_at=Date.now();r.elapsed_s=duration;r.late_s=late;
    r.xp=points.xp;r.coins=points.coins;r.overrun=points.overrun;
    r.goal_reached=points.fast??points.goalReached;r.speed_factor=points.speed;
-   if(points.overrun&&r.has_time_limit!==false){
+   if(points.overrun&&r.has_time_limit===true){
     const proposal=latePenaltyProposal();
     if(proposal&&(proposal.xp||proposal.coins)){
      r.penaltyProposal=proposal;r.penaltyDecision='pending';
     }
    }
-   r.status=r.validation==='parent'?'pending_parent':'complete';
+   r.status=(r.has_time_limit||r.validation==='parent')?'pending_parent':'complete';
    if(r.status==='complete'){
-    db.wallet.xp+=r.xp;db.wallet.coins+=r.coins;
+    creditXp(r.xp);db.wallet.coins+=r.coins;
     if(t.homeworkBlock)hwApplyCompleted(r);
     result.levelCoins=applyLevelRewards();
    }
@@ -589,7 +606,7 @@ async function demoCall(path,method,body){let result={ok:true};
   if(r){
    r.status=body.approve?'complete':'rejected';
    if(body.approve){
-    db.wallet.xp+=r.xp;db.wallet.coins+=r.coins;
+    creditXp(r.xp);db.wallet.coins+=r.coins;
     if(r.homeworkActual)hwApplyCompleted(r);
     result.levelCoins=applyLevelRewards();
    }else{
@@ -605,7 +622,7 @@ async function demoCall(path,method,body){let result={ok:true};
    const xp=Math.round(clamp(Number(proposed.xp)||0,0,20));
    const coins=Math.round(clamp(Number(proposed.coins)||0,0,20));
    r.penaltyApplied={xp:Math.min(db.wallet.xp,xp),coins:Math.min(db.wallet.coins,coins)};
-   db.wallet.xp=Math.max(0,db.wallet.xp-xp);
+   db.wallet.xpBank=Math.max(0,spendableXp(db.wallet)-xp);
    db.wallet.coins=Math.max(0,db.wallet.coins-coins);
    r.penaltyDecision='approved';
   }else r.penaltyDecision='waived';
@@ -887,7 +904,7 @@ function resetState(mode){
  if(!['progress','all'].includes(mode))throw Error('Mode de remise à zéro invalide');
  const config=mode==='all'?{...defaultConfig(false),tasks:[]}:JSON.parse(JSON.stringify(db.config));
  config.avatar='🚀';config.frame='neon';config.title='Recrue';
- db={config,runs:[],ledger:[],wallet:{xp:0,coins:0},requests:[],homework:[],homeworkDates:[],homeworkBlocks:[],plans:[],claimedLevels:[1],role:'child'};
+ db={config,runs:[],ledger:[],wallet:{xp:0,coins:0,xpBank:0},exchanges:[],requests:[],homework:[],homeworkDates:[],homeworkBlocks:[],plans:[],claimedLevels:[1],role:'child'};
  saveDemo();
  for(const key of ['nm_offline_runs','nm_offline_running','nm_state_cache'])localStorage.removeItem(key);
  for(let n=localStorage.length-1;n>=0;n--){

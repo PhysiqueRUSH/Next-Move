@@ -139,9 +139,8 @@ function hwAvailable(due){return Math.max(0,Number(hwDateRows().find(x=>x.due===
 function hwSelection(){return hwDateRows().map(x=>({due:x.due,count:Math.min(hwAvailable(x.due),Math.max(0,Number(homeworkDraft.items[x.due])||0))})).filter(x=>x.count>0);}
 function hwRefreshDraft(){
  for(const key of Object.keys(homeworkDraft.items))homeworkDraft.items[key]=Math.min(hwAvailable(key),Math.max(0,Number(homeworkDraft.items[key])||0));
- const limit=homeworkMaximum(Math.max(1,hwSum(hwSelection())));
- if(!homeworkDraft.manualEstimate)homeworkDraft.estimate=Math.max(5,Math.min(limit,hwSum(hwSelection())*15||20));
- else homeworkDraft.estimate=Math.max(5,Math.min(limit,Number(homeworkDraft.estimate)||5));
+ if(!homeworkDraft.manualEstimate)homeworkDraft.estimate=Math.max(1,Math.min(480,hwSum(hwSelection())*15||20));
+ else homeworkDraft.estimate=Math.max(1,Math.min(480,Number(homeworkDraft.estimate)||5));
 }
 function hwPersist(){saveDemo();data={...db};hwRefreshDraft();render();}
 function hwApplyCompleted(run){
@@ -202,8 +201,10 @@ function renderParentAccess(){return `<section class="nm-mission-card nm-empty-s
 function renderHomework(){
  hwRefreshDraft();
  const dates=hwDateRows(),selected=hwSelection(),total=hwSum(selected);
- const parentMaximum=homeworkMaximum(Math.max(1,total));
+ const cap=homeworkCaps();
  const reward=hwReward(selected,homeworkDraft.estimate,homeworkDraft.estimate*60);
+ const quick=hwReward(selected,homeworkDraft.estimate,homeworkDraft.estimate*30);
+ const slower=hwReward(selected,homeworkDraft.estimate,homeworkDraft.estimate*120);
  const urgent=dates.filter(x=>hwDaysAhead(x.due)<=1&&hwAvailable(x.due)>0);
  const urgentUnselected=urgent.some(x=>(homeworkDraft.items[x.due]||0)===0);
  const running=(data.homeworkBlocks||[]).find(b=>runFor(b.id,b.day)?.status==='running');
@@ -218,7 +219,7 @@ function renderHomework(){
  }).join('');
  const pickCards=dates.filter(x=>hwAvailable(x.due)>0).map(row=>{
   const picked=Number(homeworkDraft.items[row.due]||0),max=hwAvailable(row.due);
-  return `<div class="hw-pick-row"><div><strong>${escape(hwDateText(row.due))}</strong><small>${hwDaysAhead(row.due)>0?'⭐ +'+Math.min(14,hwDaysAhead(row.due)*Number(hwRules().advancePer))+' XP/devoir d’avance':hwDaysAhead(row.due)===0?'Échéance aujourd’hui':'Échéance dépassée'} · ${max} dispo.</small></div>
+  return `<div class="hw-pick-row"><div><strong>${escape(hwDateText(row.due))}</strong><small>${hwDaysAhead(row.due)>0?'⭐ Bonus d’avance : '+hwDaysAhead(row.due)+' j':hwDaysAhead(row.due)===0?'Échéance aujourd’hui':'Échéance dépassée'} · ${max} dispo.</small></div>
    <div class="hw-counter"><button class="hw-compact-btn" data-action="hw-pick-minus" data-due="${row.due}" aria-label="Retirer un devoir">−</button><strong class="hw-count-num">${picked}</strong><button class="hw-compact-btn" data-action="hw-pick-plus" data-due="${row.due}" aria-label="Ajouter un devoir">+</button></div>
   </div>`;
  }).join('');
@@ -239,13 +240,13 @@ function renderHomework(){
   ${pickCards||'<div class="hw-empty">Ajoute des devoirs pour préparer ton bloc.</div>'}
   <div class="hw-estimate"><div><strong>3. Mon objectif de temps</strong><small>Combien de minutes pour ce bloc ?</small></div>
    <div class="hw-counter"><button class="hw-compact-btn" data-action="hw-estimate-minus" aria-label="Cinq minutes de moins">−</button>
-    <input id="hw-duration" type="number" min="5" max="${parentMaximum}" step="1" inputmode="numeric" value="${homeworkDraft.estimate}" aria-label="Mon objectif en minutes">
+    <input id="hw-duration" type="number" min="1" max="480" step="1" inputmode="numeric" value="${homeworkDraft.estimate}" aria-label="Mon objectif en minutes">
     <button class="hw-compact-btn" data-action="hw-estimate-plus" aria-label="Cinq minutes de plus">+</button></div></div>
   ${urgentUnselected?'<div class="hw-urgent">⚠️ Pense aux devoirs à rendre bientôt !</div>':''}
-  <div class="hw-maximum">Limite parent : ${parentMaximum} min pour ce bloc</div>
-  <div class="hw-reward-preview">🏆 ${reward.xp} XP estimés <span>🪙 ${reward.coins} pièces</span></div>
+  <div class="hw-maximum">Maximum : ${total*cap.xp} XP et ${total*cap.coins} pièces si tous les devoirs sont terminés.</div>
+  <div class="hw-reward-preview" aria-live="polite"><span>🎯 Dans mon objectif : ${reward.xp} XP · ${reward.coins} 🪙</span><span>⚡ Deux fois plus vite : ${quick.xp} XP · ${quick.coins} 🪙</span><span>🐢 Deux fois plus lent : ${slower.xp} XP · ${slower.coins} 🪙</span></div>
   <button class="btn primary block hw-launch" data-action="hw-start" ${total===0?'disabled':''}>▶ JE LANCE MON BLOC</button>
-  <small class="hw-small">⚡ Plus tu termines vite, plus tu gagnes. Aucun point si tu dépasses la limite parentale.</small>`}
+  <small class="hw-small">Pas de temps limite pour les devoirs. Les gains dépendent de la vitesse, du volume réellement terminé et de l’avance par date.</small>`}
  </section>
  ${recent?`<details class="hw-panel hw-history"><summary>📈 Mes derniers blocs</summary>${recent}</details>`:''}`;
 }
@@ -641,7 +642,7 @@ function hwAdjustPick(due,delta){
  homeworkDraft.items[due]=next;hwRefreshDraft();render();
 }
 function hwAdjustEstimate(delta){
- homeworkDraft.estimate=Math.max(5,Math.min(homeworkMaximum(Math.max(1,hwSum(hwSelection()))),Number(homeworkDraft.estimate)+delta));
+ homeworkDraft.estimate=Math.max(1,Math.min(480,Number(homeworkDraft.estimate)+delta));
  homeworkDraft.manualEstimate=true;render();
 }
 async function hwCreateAndStart(){
@@ -650,11 +651,10 @@ async function hwCreateAndStart(){
  if(!count)return toast('Choisis au moins un devoir.');
  if(count>20)return toast('Maximum 20 devoirs dans un bloc.');
  const estimate=Number($('#hw-duration')?.value||homeworkDraft.estimate);
- const maxMinutes=homeworkMaximum(count);
- if(!Number.isInteger(estimate)||estimate<5||estimate>maxMinutes)return toast('Objectif supérieur à la limite parentale ('+maxMinutes+' min).');
+ if(!Number.isInteger(estimate)||estimate<1||estimate>480)return toast('Choisis un objectif entre 1 et 480 minutes.');
  for(const x of items){if(x.count>hwAvailable(x.due))return toast('Le nombre de devoirs a changé : vérifie ton bloc.');}
  const original=data.config.tasks.find(t=>t.id==='homework');
- const block={id:'hb-'+rand(),day:dayNow(),time:localTime(),estimate,maxMinutes,items,validation:original?.validation==='parent'?'parent':'self'};
+ const block={id:'hb-'+rand(),day:dayNow(),time:localTime(),estimate,items,validation:original?.validation==='parent'?'parent':'self'};
  db.homeworkBlocks.push(block);saveDemo();data={...db};
  homeworkDraft={items:{},estimate:20,manualEstimate:false};activeDay=dayNow();tab='today';
  await startTask(block.id,estimate);
@@ -884,7 +884,7 @@ async function bootstrap(){
   event.preventDefault();const action=actions[target.dataset.action];if(action)try{await action(event,target)}catch(e){toast('Erreur : '+e.message)}
  });
  document.addEventListener('submit',onForm);
- document.addEventListener('change',async e=>{if(e.target.id==='backup-import')await restoreBackup(e.target.files?.[0]);if(e.target.id==='hw-duration'){const x=Number(e.target.value);if(Number.isInteger(x)&&x>=5&&x<=homeworkMaximum(Math.max(1,hwSum(hwSelection())))){homeworkDraft.estimate=x;homeworkDraft.manualEstimate=true;render();}}});
+ document.addEventListener('change',async e=>{if(e.target.id==='backup-import')await restoreBackup(e.target.files?.[0]);if(e.target.id==='hw-duration'){const x=Number(e.target.value);if(Number.isInteger(x)&&x>=1&&x<=480){homeworkDraft.estimate=x;homeworkDraft.manualEstimate=true;render();}}});
  setInterval(clockTick,1000);
  setInterval(checkLocalChallenges,15000);
  setInterval(async()=>{if(connected&&navigator.onLine&&initDone&&data.paired){await refresh(true);storeCache()}},30000);

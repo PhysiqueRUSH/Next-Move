@@ -632,13 +632,13 @@ async function demoCall(path,method,body){let result={ok:true};
    r.finished_at=Date.now();r.elapsed_s=duration;r.late_s=late;
    r.xp=points.xp;r.coins=points.coins;r.overrun=points.overrun;
    r.goal_reached=points.fast??points.goalReached;r.speed_factor=points.speed;
-   if(points.overrun&&r.has_time_limit===true){
+   if(points.overrun&&(r.has_time_limit??taskHasLimit(t))){
     const proposal=latePenaltyProposal();
     if(proposal&&(proposal.xp||proposal.coins)){
      r.penaltyProposal=proposal;r.penaltyDecision='pending';
     }
    }
-   r.status=(r.has_time_limit||r.validation==='parent')?'pending_parent':'complete';
+   r.status=((r.has_time_limit??taskHasLimit(t))||r.validation==='parent')?'pending_parent':'complete';
    if(r.status==='complete'){
     creditXp(r.xp);db.wallet.coins+=r.coins;
     if(t.homeworkBlock)hwApplyCompleted(r);
@@ -788,7 +788,7 @@ async function finishTask(taskId){
  if(!run||run.status!=='running')return;
  const task=tasksFor(activeDay).find(t=>t.id===taskId);
  if(task?.homeworkBlock){modalHomeworkFinish(taskId);return;}
- const limited=run.has_time_limit===true||taskHasLimit(task);
+ const limited=run.has_time_limit??taskHasLimit(task);
  // Pour les tâches limitées, arrêter immédiatement : aucune fenêtre de confirmation ne fait tourner le chrono.
  if(!limited&&!confirm('Confirmer que la mission est réellement terminée ?'))return;
  if(run.offline){

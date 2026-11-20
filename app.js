@@ -220,6 +220,8 @@ const isDone=r=>r&&['complete','pending_parent','rejected'].includes(r.status);
 const getActive=(day=activeDay)=>{
  const tasks=tasksFor(day),running=tasks.find(t=>runFor(t.id,day)?.status==='running');
  if(running)return running;
+ const awaiting=tasks.find(t=>runFor(t.id,day)?.status==='pending_parent'&&taskHasLimit(t));
+ if(awaiting)return awaiting;
  const pending=tasks.filter(t=>!runFor(t.id,day));
  if(!pending.length)return null;
  if(day!==dayNow())return pending[0];
@@ -318,7 +320,7 @@ function modalHomeworkFinish(taskId){
 
 function renderToday(){
  const all=tasksFor(activeDay);
- const finished=all.filter(t=>{const r=runFor(t.id,activeDay);return r&&['complete','pending_parent'].includes(r.status)}).length;
+ const finished=all.filter(t=>{const r=runFor(t.id,activeDay);return r?.status==='complete'}).length;
  const mission=getActive();
  const level=levelInfo(data.wallet.xp);
  const today=activeDay===dayNow();
@@ -326,6 +328,18 @@ function renderToday(){
  let hero='';
  if(!mission){
   hero=`<section class="nm-mission-card nm-empty-screen"><span class="nm-emoji">${all.length?'🏆':'🌟'}</span><h1>${all.length?'Tous les défis sont terminés !':'Rien de prévu aujourd’hui'}</h1><p>${all.length?'Bravo, tu as assuré !':'Tu peux profiter de ton temps libre.'}</p><button class="btn primary" data-action="tab" data-id="challenges">Voir mes trophées</button></section>`;
+  }else if(mission&&runFor(mission.id,activeDay)?.status==='pending_parent'){
+  const r=runFor(mission.id,activeDay),goal=Math.max(1,Number(r.goal_minutes)||mission.minutes);
+  const remain=goal*60-Math.max(0,Number(r.elapsed_s)||0);
+  hero=`<section class="nm-mission-card nm-awaiting-card">
+   <div class="nm-eyebrow">🔒 CHRONO ARRÊTÉ</div>
+   <h1 class="nm-mission-title">${escape(mission.title)}</h1>
+   <div class="nm-timer-stage"><div class="timer">${remain<0?'+':''}${pretty(remain)}</div>
+    <div class="timer-caption">⏸️ TEMPS FIGÉ · VALIDATION PARENTALE</div></div>
+   <p class="nm-awaiting-text">Terminé en ${pretty(Number(r.elapsed_s)||0)}. Les récompenses sont bloquées jusqu'à la vérification du parent.</p>
+   <div class="nm-reward-hint"><span>⚡ ${r.xp||0} XP en attente</span><span>🪙 ${r.coins||0} pièces en attente</span></div>
+   <button class="btn primary block nm-one-action" data-action="open-run-approval" data-id="${escape(r.id)}">🔐 FAIRE VALIDER PAR UN PARENT</button>
+  </section>`;
  }else if(mission.homeworkLauncher){
   hero=`<section class="nm-mission-card"><div class="nm-eyebrow"><span class="nm-pulse"></span>MISSION DEVOIRS</div><h1 class="nm-mission-title">📚 Blocs de devoirs</h1><div class="nm-mission-meta">Choisis tes devoirs et ton objectif de temps.</div><div class="nm-timer-stage"><div class="timer" style="font-size:52px">🎯</div></div><button class="btn primary block nm-one-action" data-action="show-homework">PRÉPARER MON BLOC →</button></section>`;
  }else{
@@ -625,7 +639,7 @@ async function demoCall(path,method,body){let result={ok:true};
     if(t.homeworkBlock)hwApplyCompleted(r);
     result.levelCoins=applyLevelRewards();
    }
-   result.points={xp:r.xp,coins:r.coins};result.status=r.status;result.overrun=points.overrun;
+   result.runId=r.id;result.points={xp:r.xp,coins:r.coins};result.status=r.status;result.overrun=points.overrun;
    result.penaltyPending=r.penaltyDecision==='pending';
   }
  }
@@ -765,16 +779,35 @@ async function startTask(taskId,goalMinutes){
 
  catch(e){if(!navigator.onLine){const obj={id:'offline-'+rand(),task_id:taskId,day,started_at:Date.now(),planned_at:Date.now(),status:'running',offline:true};data.runs.unshift(obj);localStorage.setItem('nm_offline_running',JSON.stringify(obj));render();toast('Hors ligne · chrono local actif. Validation parentale après synchronisation.')}else toast('Impossible de démarrer : '+e.message)}
 }
-async function finishTask(taskId){const run=runFor(taskId,activeDay);if(!run||run.status!=='running')return;
- if(tasksFor(activeDay).find(t=>t.id===taskId)?.homeworkBlock){modalHomeworkFinish(taskId);return;}
- if(!confirm('Confirmer que la mission est réellement terminée ?'))return;
- if(run.offline){run.finished_at=nowMs();run.elapsed_s=Math.floor((run.finished_at-run.started_at)/1000);run.status='pending_parent';const q=offlineRuns();q.push({taskId,day:activeDay,startedAt:run.started_at,finishedAt:run.finished_at});saveOfflineRuns(q);localStorage.removeItem('nm_offline_running');render();celebration('Défi terminé hors ligne : en attente de vérification');return;}
- try{const result=await call('/run/finish','POST',{taskId,day:activeDay});await refresh(true);
-  if(result.status==='pending_parent')toast('⏳ Mission terminée, validation parentale en attente');
-  else if(result.overrun)toast(result.penaltyPending?'⏳ Temps dépassé · décision du parent attendue':'⌛ Temps dépassé · aucun gain');
-  else celebration('Mission terminée ! +'+result.points.xp+' XP'+(result.levelCoins?' · +'+result.levelCoins+' pièces de niveau':''))}catch(e){
-  if(!navigator.onLine||e instanceof TypeError){const end=Date.now(),q=offlineRuns();q.push({taskId,day:activeDay,startedAt:run.started_at,finishedAt:end});saveOfflineRuns(q);run.status='pending_parent';run.finished_at=end;render();toast('Hors ligne : résultat enregistré. Validation parentale au retour du réseau.');}
-  else toast('Erreur : '+e.message)
+async function finishTask(taskId){
+ const run=runFor(taskId,activeDay);
+ if(!run||run.status!=='running')return;
+ const task=tasksFor(activeDay).find(t=>t.id===taskId);
+ if(task?.homeworkBlock){modalHomeworkFinish(taskId);return;}
+ const limited=run.has_time_limit===true||taskHasLimit(task);
+ // Pour les tâches limitées, arrêter immédiatement : aucune fenêtre de confirmation ne fait tourner le chrono.
+ if(!limited&&!confirm('Confirmer que la mission est réellement terminée ?'))return;
+ if(run.offline){
+  run.finished_at=nowMs();run.elapsed_s=Math.floor((run.finished_at-run.started_at)/1000);run.status='pending_parent';
+  const queue=offlineRuns();queue.push({taskId,day:activeDay,startedAt:run.started_at,finishedAt:run.finished_at});
+  saveOfflineRuns(queue);localStorage.removeItem('nm_offline_running');render();
+  toast('Chrono arrêté. Validation parentale en attente.');return;
+ }
+ try{
+  const result=await call('/run/finish','POST',{taskId,day:activeDay});
+  await refresh(true);
+  if(result.status==='pending_parent'){
+   toast('⏸️ Chrono figé · validation parentale');
+   if(limited)modalApproveRun(result.runId||runFor(taskId,activeDay)?.id);
+  }else if(result.overrun)toast('⌛ Temps limite dépassé · aucun gain');
+  else celebration('Mission terminée ! +'+result.points.xp+' XP'+(result.levelCoins?' · +'+result.levelCoins+' pièces de niveau':''));
+ }catch(e){
+  if(!navigator.onLine||e instanceof TypeError){
+   const ended=Date.now(),queue=offlineRuns();
+   queue.push({taskId,day:activeDay,startedAt:run.started_at,finishedAt:ended});
+   saveOfflineRuns(queue);run.status='pending_parent';run.finished_at=ended;run.elapsed_s=Math.floor((ended-run.started_at)/1000);
+   render();toast('Chrono arrêté · validation au retour du réseau.');
+  }else toast('Erreur : '+e.message);
  }
 }
 async function flushOffline(){if(!connected||!navigator.onLine)return;const queue=offlineRuns();if(!queue.length)return;let pending=[];for(const item of queue){try{await call('/run/offline','POST',item)}catch{pending.push(item)}}saveOfflineRuns(pending);if(pending.length!==queue.length)await refresh(true)}
@@ -870,6 +903,7 @@ const actions={
  'goal-minus':()=>{const input=$('#goal-minutes');if(input){input.value=Math.max(Number(input.min)||1,(Number(input.value)||1)-1);refreshGoalPreview()}},
  'goal-plus':()=>{const input=$('#goal-minutes');if(input){input.value=Math.min(Number(input.max)||480,(Number(input.value)||1)+1);refreshGoalPreview()}},
  'finish':(_,el)=>finishTask(el.dataset.id),
+ 'open-run-approval':(_,el)=>modalApproveRun(el.dataset.id),
  'approve-run-pin':(_,el)=>resolveRunWithPin(el.dataset.id,true),
  'reject-run-pin':(_,el)=>resolveRunWithPin(el.dataset.id,false),
  'convert-xp':()=>convertXpFromShop(),

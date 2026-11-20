@@ -53,7 +53,12 @@ db.homeworkBlocks=Array.isArray(db.homeworkBlocks)?db.homeworkBlocks:[];
 db.wallet=db.wallet||{xp:0,coins:0};
 if(!Number.isFinite(db.wallet.xpBank))db.wallet.xpBank=Math.max(0,Number(db.wallet.xp)||0);
 db.exchanges=Array.isArray(db.exchanges)?db.exchanges:[];
-if(db.config?.overrunPolicy==='none')db.config.overrunPolicy='propose';
+const malusMigrationKey='nextmove_malus_migrated_v1';
+if(!localStorage.getItem(malusMigrationKey)){
+ if(db.config?.overrunPolicy==='none')db.config.overrunPolicy='propose';
+ localStorage.setItem(malusMigrationKey,'1');
+ localStorage.setItem(demoKey,JSON.stringify(db));
+}
 db.claimedLevels=Array.isArray(db.claimedLevels)?db.claimedLevels:Array.from({length:levelInfo(Number(db.wallet?.xp)||0).n},(_,i)=>i+1);
 const saveDemo=()=>localStorage.setItem(demoKey,JSON.stringify(db));
 let data={role:'child',config:defaultConfig(false),wallet:{xp:0,coins:0,xpBank:0},exchanges:[],runs:[],requests:[],homework:[],ledger:[],plans:[],paired:false};

@@ -17,7 +17,7 @@ const CATEGORY=['🌅 Routine du matin','🎒 Cartable','📚 Devoirs','🧺 Ran
 const categoryList=()=>(data?.config?.categories?.length?data.config.categories:CATEGORY);
 const SUBJECTS=['Maths','Français','Histoire-Géo','Anglais','SVT','Physique-Chimie','Technologie','Espagnol','Autre'];
 const WEEK=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
-const task=(id,title,category,time,minutes,days=[1,2,3,4,5],options={})=>({id,title,category,time,minutes,days,modes:['school'],validation:'self',priority:2,carry:'expire',notify:true,enabled:true,locked:false,steps:[],...options});
+const task=(id,title,category,time,minutes,days=[1,2,3,4,5],options={})=>({id,title,category,time,minutes,maxMinutes:minutes,days,modes:['school'],validation:'self',priority:2,carry:'expire',notify:true,enabled:true,locked:false,steps:[],...options});
 function defaultConfig(enable=false){return {
  version:1,childName:'Mahé',categories:[...CATEGORY],avatar:'🚀',frame:'neon',title:'Recrue',xpName:'XP',parentPinHint:'',pronoteUrl:cfg.pronoteUrl||'',
  tasks:[
@@ -43,12 +43,14 @@ function defaultConfig(enable=false){return {
   {id:'quiet-night',start:'21:00',end:'06:25',days:[0,1,2,3,4,5,6],modes:['school','vacation','weekend']}
  ],
  periods:[],exceptions:[],customChallenges:[],rankMode:1,
+ homeworkMaxPer:30,overrunPolicy:'none',overrunXp:5,overrunCoins:3,
  milestones:{guided:70,autonomous:85},autoChallenges:true
 };}
 const demoKey='nextmove_demo_v1'; // Conserver cette clé pour préserver les progrès existants
 let db=JSON.parse(localStorage.getItem(demoKey)||'null')||{config:defaultConfig(true),runs:[],ledger:[],wallet:{xp:0,coins:0},requests:[],homework:[],plans:[],role:'child'};
 db.homeworkDates=Array.isArray(db.homeworkDates)?db.homeworkDates:[];
 db.homeworkBlocks=Array.isArray(db.homeworkBlocks)?db.homeworkBlocks:[];
+db.claimedLevels=Array.isArray(db.claimedLevels)?db.claimedLevels:Array.from({length:levelInfo(Number(db.wallet?.xp)||0).n},(_,i)=>i+1);
 const saveDemo=()=>localStorage.setItem(demoKey,JSON.stringify(db));
 let data={role:'child',config:defaultConfig(false),wallet:{xp:0,coins:0},runs:[],requests:[],homework:[],ledger:[],plans:[],paired:false};
 let homeworkDraft={items:{},estimate:20,manualEstimate:false};
@@ -63,20 +65,61 @@ function celebration(title='NOUVEAU DÉFI ACCOMPLI !'){
 }
 function levelInfo(xp){let n=1;while(xp>=n*n*100)n++;const lo=(n-1)**2*100,hi=n*n*100;return {n,progress:Math.max(0,Math.min(100,100*(xp-lo)/(hi-lo))),current:xp-lo,needed:hi-lo};}
 
+
+const clamp=(v,min,max)=>Math.min(max,Math.max(min,v));
+const validTime=v=>Number.isFinite(Number(v))&&Number(v)>=1;
+function taskMaximum(t){const def=validTime(t?.minutes)?Number(t.minutes):15;return Math.round(clamp(validTime(t?.maxMinutes)?Number(t.maxMinutes):def,1,240));}
+function homeworkMaximum(count){return Math.round(clamp(Math.max(1,Number(count)||1)*Number(data.config.homeworkMaxPer||30),5,240));}
+function speedFactor(seconds,maxMinutes){return clamp(1-Math.max(0,Number(seconds))/Math.max(60,Number(maxMinutes)*60),0,1);}
+function goalReached(seconds,goalMinutes){return Number(seconds)<=Math.max(1,Number(goalMinutes))*60;}
+function taskReward(t,goalMinutes,maxMinutes,seconds,late){
+ const max=Math.max(1,Number(maxMinutes)||taskMaximum(t)),goal=clamp(Number(goalMinutes)||Number(t.minutes)||max,1,max);
+ if(seconds>max*60)return {xp:0,coins:0,overrun:true,speed:0,goalReached:false};
+ const speed=speedFactor(seconds,max),targetMet=goalReached(seconds,goal);
+ const xp=Math.round(Number(t.xpBase??10)+Number(t.xpSpeed??20)*speed+
+  (targetMet?Math.max(2,Math.round(Number(t.xpSpeed??20)*.3)):0)+
+  (late===0?Number(t.xpInitiative??15):0));
+ const coins=Math.round(Number(t.coinsBase??5)+Number(t.coinsSpeed??10)*speed+
+  (targetMet?Math.max(1,Math.round(Number(t.coinsSpeed??10)*.3)):0)+
+  (late===0?Number(t.coinsInitiative??5):0));
+ return {xp:Math.max(0,xp),coins:Math.max(0,coins),overrun:false,speed,goalReached:targetMet};
+}
+function levelCoins(n){return clamp(5+3*n,8,75);}
+function applyLevelRewards(){
+ if(!Array.isArray(db.claimedLevels))db.claimedLevels=[1];
+ const now=levelInfo(Math.max(0,Number(db.wallet.xp)||0)).n;
+ let gained=0;
+ for(let n=2;n<=now;n++){
+  if(db.claimedLevels.includes(n))continue;
+  gained+=levelCoins(n);
+  db.claimedLevels.push(n);
+ }
+ if(gained)db.wallet.coins+=gained;
+ return gained;
+}
+function latePenaltyProposal(){
+ const conf=data.config||{};
+ if(conf.overrunPolicy!=='propose')return null;
+ return {xp:Math.round(clamp(Number(conf.overrunXp)||0,0,20)),coins:Math.round(clamp(Number(conf.overrunCoins)||0,0,20))};
+}
+
 /* Blocs de devoirs : quantité par date, travail anticipé et chrono sans pause. */
 function hwDateRows(){return (data.homeworkDates||[]).filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x.due)&&Number(x.count)>0).sort((a,b)=>a.due.localeCompare(b.due));}
 function hwDaysAhead(due,ref=dayNow()){return Math.round((Date.parse(due+'T12:00:00Z')-Date.parse(ref+'T12:00:00Z'))/86400000);}
 function hwDateText(due){return new Intl.DateTimeFormat('fr-FR',{weekday:'short',day:'numeric',month:'short'}).format(new Date(due+'T12:00:00Z'));}
 function hwSum(items){return items.reduce((sum,x)=>sum+Math.max(0,Number(x.count)||0),0);}
 function hwRules(){return {xpPer:8,coinsPer:2,advancePer:2,volumePer:3,...(data.config.homeworkRules||{})};}
-function hwReward(items,minutesEstimate,seconds,ref=dayNow()){
- const count=hwSum(items),rules=hwRules();
+function hwReward(items,minutesEstimate,seconds,ref=dayNow(),parentMax){
+ const count=hwSum(items),rules=hwRules(),max=Number(parentMax)||homeworkMaximum(count);
  const advance=items.reduce((sum,x)=>sum+Math.max(0,Number(x.count)||0)*Math.min(14,Math.max(0,hwDaysAhead(x.due,ref))*Number(rules.advancePer)),0);
- const fast=Number.isFinite(seconds)&&seconds<=minutesEstimate*60;
  const volume=Math.min(36,Math.max(0,count-1)*Number(rules.volumePer));
- return {xp:Math.min(400,count*Number(rules.xpPer)+volume+advance+(fast?Math.min(10,2+count*2):0)),
-         coins:Math.min(150,count*Number(rules.coinsPer)+Math.min(12,Math.floor(Math.max(0,count-1)*1.5))+Math.floor(advance/2)+(fast?Math.min(5,1+count):0)),
-         count,advance,volume,fast};
+ if(seconds>max*60)return {xp:0,coins:0,count,advance,volume,fast:false,speed:0,overrun:true};
+ const speed=speedFactor(seconds,max),fast=goalReached(seconds,minutesEstimate);
+ const speedXp=Math.round(Math.min(65,5+count*5)*speed);
+ const speedCoins=Math.round(Math.min(40,2+count*3)*speed);
+ return {xp:Math.min(400,Math.round(count*Number(rules.xpPer)+volume+advance+speedXp+(fast?Math.min(12,2+count*2):0))),
+         coins:Math.min(150,Math.round(count*Number(rules.coinsPer)+Math.min(12,Math.floor(Math.max(0,count-1)*1.5))+Math.floor(advance/2)+speedCoins+(fast?Math.min(8,1+count):0))),
+         count,advance,volume,fast,speed,overrun:false};
 }
 function hwReserved(due){
  return (data.homeworkBlocks||[]).reduce((n,b)=>{
@@ -104,7 +147,7 @@ function hwApplyCompleted(run){
 function hwBlockTask(b){
  const total=hwSum(b.items||[]);
  return {id:b.id,title:'Bloc de '+total+' devoir'+(total>1?'s':''),category:2,time:b.time||'17:20',
-  minutes:Number(b.estimate)||20,priority:2,validation:b.validation||'self',homeworkBlock:true,items:b.items,enabled:true,carry:'keep'};
+  minutes:Number(b.estimate)||20,maxMinutes:Number(b.maxMinutes)||homeworkMaximum(total),priority:2,validation:b.validation||'self',homeworkBlock:true,items:b.items,enabled:true,carry:'keep'};
 }
 
 function modeFor(s){const periods=data.config.periods||[];return periods.find(x=>x.start<=s&&x.end>=s)?.mode||([0,6].includes(dayOf(s))?'weekend':'school')}

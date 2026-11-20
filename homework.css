@@ -1,0 +1,52 @@
+
+/* NEXT MOVE — blocs de devoirs, petits gestes et grand chrono */
+.hw-hint{padding:12px 14px;border-radius:14px;background:#173248;color:#c1eaf6;font-size:13px;font-weight:700;margin-bottom:15px}
+.hw-panel{border:1px solid #2d4968;background:linear-gradient(155deg,#142440,#101a2d);border-radius:21px;padding:18px 15px;margin:0 0 15px;box-shadow:0 11px 32px #0002}
+.hw-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:14px}
+.hw-heading h2{margin:0;color:#f3faff;font-size:19px;letter-spacing:-.3px}
+.hw-accent{font-size:12px;color:#69f5ed;font-weight:900;white-space:nowrap}
+.hw-dates{display:flex;flex-direction:column;gap:9px}
+.hw-date-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px 12px;align-items:center;border:1px solid #304560;background:#182941;border-radius:14px;padding:12px 11px}
+.hw-date-main{display:flex;flex-direction:column;gap:4px;min-width:0}
+.hw-date-main strong,.hw-pick-row strong{font-size:15px;color:#f3faff;text-transform:capitalize}
+.hw-status{font-size:11px;color:#adbfdb}
+.hw-date-card small{grid-column:1/-1;color:#a9bdda;font-size:11px}
+.hw-counter{display:flex;align-items:center;justify-content:flex-end;gap:5px;flex-shrink:0}
+.hw-compact-btn{border-radius:10px;width:37px;height:40px;border:1px solid #45617d;background:#233b58;color:#e6f8ff;font-weight:900;font-size:23px;cursor:pointer;touch-action:manipulation}
+.hw-compact-btn:active{background:#22637c;transform:scale(.96)}
+.hw-count-num{display:flex;align-items:center;justify-content:center;min-width:36px;max-width:48px;padding:0 4px;height:40px;background:#091726;border:1px solid #315277;border-radius:10px;color:#63f8f2;font-size:18px;font-weight:950}
+button.hw-count-num{cursor:pointer}
+.hw-add-form{display:grid;grid-template-columns:1.3fr .8fr auto;align-items:end;gap:8px;margin-top:14px}
+.hw-add-form .field{margin:0}
+.hw-add-form label{display:block;font-size:11px;min-height:16px;color:#bcd0e8}
+.hw-add-form input{width:100%;min-height:46px;border:1px solid #3a5776;border-radius:11px;background:#0f1c2f;color:#e8f8ff;font-size:14px;padding:5px 7px}
+.hw-add-form button{min-height:46px;font-size:12px;padding:9px 10px}
+.hw-pick-row{display:flex;align-items:center;justify-content:space-between;gap:7px;padding:12px 0;border-top:1px solid #304258}
+.hw-pick-row>div:first-child{display:flex;flex-direction:column;gap:5px;min-width:0}
+.hw-pick-row small{font-size:11px;color:#9db2ce;line-height:1.3}
+.hw-estimate{margin:15px 0 13px;border:1px solid #3b6880;border-radius:15px;padding:14px 11px;background:#172b42;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.hw-estimate>div:first-child{display:flex;flex-direction:column;gap:5px}
+.hw-estimate strong{font-size:14px}
+.hw-estimate small{font-size:11px;color:#bbcbdd}
+.hw-estimate input,.hw-pick-row input[type=number]{width:62px;height:40px;border:1px solid #3b6378;border-radius:10px;background:#0b1c2d;color:#66f6ee;text-align:center;font-size:19px;font-weight:900}
+.hw-reward-preview{display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;font-size:13px;color:#ddeefe;font-weight:850;padding:8px 0 13px}
+.hw-reward-preview span{color:#ffe29d}
+.hw-launch{min-height:62px!important;font-size:17px!important;letter-spacing:.2px;border-radius:15px!important}
+.hw-small{display:block;text-align:center;line-height:1.45;color:#a9bfdb;margin-top:11px;font-size:11px}
+.hw-history summary{font-weight:850;font-size:14px;cursor:pointer;color:#cde2fa}
+.hw-history-row{padding:12px 1px;display:flex;align-items:center;justify-content:space-between;gap:9px;color:#ccdcf2;font-size:12px;border-bottom:1px solid #304258}
+.hw-empty{padding:17px 10px;color:#a5bcd6;font-size:13px;text-align:center}
+.hw-running{text-align:center;padding:20px 4px;color:#b7dced;font-size:14px}
+.hw-running button{margin-top:14px}
+.hw-finish-max{font-size:12px;color:#9aadc6}
+.nm-bottom-nav{display:flex;flex-direction:column;gap:9px}
+@media(max-width:390px){
+.hw-panel{padding:14px 11px}
+.hw-add-form{grid-template-columns:1.3fr .75fr;gap:8px}
+.hw-add-form button{grid-column:1/-1;width:100%}
+.hw-compact-btn{width:33px;height:37px}
+.hw-count-num{height:37px;min-width:32px;font-size:17px}
+.hw-pick-row small{font-size:10px}
+.hw-estimate{padding:10px 8px}
+.hw-estimate input{width:52px;font-size:16px}
+}

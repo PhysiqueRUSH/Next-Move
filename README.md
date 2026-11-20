@@ -46,31 +46,50 @@ Ne pas ajouter de données privées ni de mots de passe dans le dépôt GitHub p
 4. Estimer le temps nécessaire (en minutes) et toucher **Je lance mon bloc**. Le compte à rebours n'est pas pausé.
 5. À la fin, confirmer la quantité **réellement terminée** pour chaque date. Les travaux non terminés restent dans le stock. Si le parent a activé l'approbation pour la mission de devoirs, les gains et le décompte définitif n'interviennent qu'après son accord.
 
-Les récompenses sont calculées selon le nombre terminé, l'avance sur la date de rendu, le volume du bloc, le respect de l'objectif choisi et **la vitesse réelle d'exécution**. À volume et avance comparables, terminer plus vite rapporte progressivement plus d'XP et de pièces. Un bonus de volume encourage les blocs cohérents plutôt que le découpage artificiel en petites missions. Le barème est éditable dans **Paramètres parentaux > Récompenses des blocs de devoirs**. Les plafonds évitent des gains excessifs. Les dates urgentes sont signalées.
+Les récompenses dépendent du nombre réellement terminé, de l’avance sur l’échéance de chaque devoir, du volume du bloc et de la vitesse d’exécution. Il n’existe aucun seuil de temps parental pour les blocs. Un bonus de volume encourage les blocs cohérents plutôt que le découpage artificiel en petites missions. Les plafonds XP et pièces par devoir sont éditables dans **Paramètres parentaux > Gains maximum par devoir**. Les dates urgentes sont signalées.
 
 **PRONOTE n'est pas connecté automatiquement** : NEXT MOVE ne voit pas les consignes ni les devoirs exacts. Le compte déclaré par Mahé repose sur sa sincérité ; une vérification ponctuelle par le parent reste utile.
 
 
-## NEXT MOVE 3 — Objectifs, limite parentale, niveaux et réinitialisation
+## NEXT MOVE 4 — Défis chronométrés, récompenses et horaires
 
-### Chrono individuel et limite parentale
+### Deux choix indépendants pour chaque mission
 
-- Avant **chaque mission ordinaire**, Mahé choisit librement un **objectif de temps** (en minutes). Ce chiffre est mémorisé lors du démarrage et ne peut pas être modifié en cours de mission. Le chrono est sans pause.
-- Dans **⚙️ Parent > Missions > Modifier**, le parent choisit une **durée suggérée** et une **limite MAXIMALE** pour chaque mission.
-- Pour un bloc de devoirs, Mahé choisit son objectif dans l'écran de composition. Le maximum est égal au nombre de devoirs sélectionnés multiplié par le **maximum par devoir** choisi dans **⚙️ Parent > Réglages > Limites & récompenses**, avec un plafond absolu de 240 minutes.
-- **Dans la limite**, les gains augmentent graduellement quand le temps réel diminue, en plus d'un bonus spécifique si Mahé respecte son propre objectif. Les gains des devoirs conservent les bonus volume et anticipation.
-- **Au-delà de la limite parentale**, la mission reste terminable, mais ne rapporte aucun XP ni aucune pièce. Le parent peut choisir de faire apparaître une **proposition de pénalité** (au maximum 20 XP et 20 pièces), qui n'est appliquée qu'après sa validation manuelle dans le Bilan parental. Aucun solde ne devient négatif. Le niveau XP peut diminuer lorsqu'une pénalité XP est confirmée.
-- Pour les tâches dont la qualité est essentielle, conserver une validation parentale ; le chrono ne certifie pas à lui seul le travail effectué.
+Dans **⚙️ Paramètres parentaux > Missions > Modifier** :
+- **Organisation** : choisir **À horaire fixe** (affichée avec son heure, rappel-défi, non déplaçable automatiquement, retard au démarrage mesuré), ou **N’importe quand dans la journée** (aucun horaire imposé, aucun retard au démarrage, aucun rappel à heure précise).
+- **Limite de temps** : choisir **Avec limite** puis définir la limite maximale en minutes (dépassée = 0 gain, pénalité éventuelle après approbation parentale), ou **Sans limite** (gains progressifs même si la mission prend plus de temps que prévu).
+- **Plafonds de gains** : définir **XP MAXIMUM** et **Pièces MAXIMUM** pour chaque mission. Le plafond est absolu, et non la récompense automatiquement gagnée.
+- **Durée suggérée** : sert uniquement de valeur initiale pour le chrono que Mahé définit lui-même avant chaque lancement.
 
-### Plus de récompenses de niveau
+Un horaire fixe est un horaire planifié, pris en compte pour les rappels et la mesure de réactivité. Mahé peut commencer en avance ; la mission ne se déplace pas automatiquement. Les tâches libres apparaissent dans une zone dédiée de la journée.
 
-Le profil comporte désormais **27 avatars**, **12 styles de cadres**, **22 titres**, **11 médailles liées au niveau** et un **bonus en pièces à chaque nouveau niveau** (attribué une seule fois par niveau atteint pour éviter les répétitions). Les catégories sont repliées par défaut pour conserver un écran simple.
+### Récompenses visibles avant de commencer
 
-### Réinitialiser les données
+Avant le démarrage de chaque mission, Mahé choisit son **objectif de temps en minutes**. L'écran calcule instantanément les XP et les pièces pour trois scénarios : fin **dans l'objectif**, **deux fois plus vite** et **deux fois plus lentement**. Le calcul réel est continu : plus c'est rapide, plus les gains sont élevés. Un bonus est accordé pour un objectif respecté et, sur les tâches fixes, un démarrage sans retard. Aucun résultat ne dépasse les plafonds configurés.
 
-Dans **⚙️ Parent > Réglages > Réinitialiser NEXT MOVE**, le bouton **Effacer et recommencer** propose :
+Le calcul est enregistré au lancement, avec les plafonds applicables à ce moment-là. L'objectif ne peut pas être changé une fois le chrono lancé.
 
-1. **Remettre à zéro les progrès** : effacer missions réalisées, chronos, devoirs, blocs, récompenses demandées/gagnées, XP, pièces et historique, **tout en conservant la liste des missions programmées et les réglages**.
-2. **Tout réinitialiser** : effacer également les tâches programmées et les réglages personnalisés. Les modèles par défaut restent disponibles mais les missions sont vidées pour repartir de zéro.
+### Blocs de devoirs sans seuil maximal
 
-La réinitialisation demande le **PIN parent à quatre chiffres** et la saisie exacte de **EFFACER**. Il est recommandé d'exporter la sauvegarde avant l'opération. La remise à zéro conserve le PIN parental du téléphone.
+**Les blocs de devoirs n'ont aucune limite parentale de durée.** Mahé sélectionne les quantités par date d'échéance, choisit un objectif puis visualise les gains projetés. Même s'il dépasse largement son estimation, un bloc réellement terminé garde des gains réduits.
+
+Dans **⚙️ Paramètres parentaux > Réglages > Gains maximum par devoir** :
+- Choisir **XP maximum par devoir terminé** et **Pièces maximum par devoir terminé**.
+- Le plafond total du bloc est **nombre de devoirs réellement terminés × plafond par devoir**.
+- Pour chaque date de rendu, un bonus de progression dépend **du nombre de jours d'avance** (jusqu'à 14 jours), et se cumule avec l'effet de la vitesse à l'intérieur du plafond.
+- Le bonus de volume favorise aussi un bloc regroupant plusieurs devoirs, sans jamais dépasser les plafonds.
+- Le chrono continue sans pause ; aucun seuil parental ne peut supprimer les gains des devoirs pour cause de lenteur.
+
+Le nombre de devoirs réellement terminés, déclaré à la fin, est utilisé pour calculer les gains et déduire les devoirs de la liste. Une validation parentale peut être activée pour la mission « Blocs de devoirs ». Les consignes restent dans PRONOTE.
+
+### Pénalités et autonomie
+
+Une pénalité n'est envisageable **que pour une tâche avec limite de temps**, si le parent a activé cette possibilité. Même dans ce cas, elle n'est jamais appliquée automatiquement : elle apparaît à approuver dans le bilan parental. Les tâches et devoirs sans limite ne sont pas pénalisés pour la durée.
+
+### Progression, sauvegardes et réinitialisation
+
+Le profil comporte 27 avatars, 12 cadres, 22 titres, 11 médailles de niveau et des bonus en pièces lors des passages de niveau, sans répétition des bonus déjà obtenus.
+
+Le bouton **Effacer et recommencer**, dans les réglages parentaux, demande le PIN et la saisie « EFFACER ». Il permet d'effacer les progrès en conservant les missions configurées ou de remettre aussi les tâches et paramètres à zéro. Exporter une sauvegarde JSON au préalable est recommandé.
+
+L'application reste **100 % locale**, installable depuis GitHub Pages, sans compte Google ni Firebase, et sans synchronisation entre appareils.

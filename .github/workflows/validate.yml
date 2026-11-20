@@ -1,0 +1,23 @@
+name: Validate NEXT MOVE
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check JavaScript syntax
+        run: |
+          node --check app.js
+          node --check sw.js
+          node --check config.js
+      - name: Check required PWA files
+        run: |
+          test -f index.html
+          test -f manifest.json
+          test -f ui.css
+          test -f styles.css
+          grep -q 'ui.css' index.html
+          ! grep -q 'MODE DÉMONSTRATION' app.js

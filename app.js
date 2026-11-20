@@ -108,7 +108,7 @@ function hwDateRows(){return (data.homeworkDates||[]).filter(x=>/^\d{4}-\d{2}-\d
 function hwDaysAhead(due,ref=dayNow()){return Math.round((Date.parse(due+'T12:00:00Z')-Date.parse(ref+'T12:00:00Z'))/86400000);}
 function hwDateText(due){return new Intl.DateTimeFormat('fr-FR',{weekday:'short',day:'numeric',month:'short'}).format(new Date(due+'T12:00:00Z'));}
 function hwSum(items){return items.reduce((sum,x)=>sum+Math.max(0,Number(x.count)||0),0);}
-function hwRules(){return {xpPer:8,coinsPer:2,advancePer:2,volumePer:3,...(data.config.homeworkRules||{})};}
+function hwRules(){return {xpPer:8,coinsPer:2,advancePer:2,volumePer:8,...(data.config.homeworkRules||{})};}
 function hwReward(items,minutesEstimate,seconds,ref=dayNow(),parentMax){
  const count=hwSum(items),rules=hwRules(),max=Number(parentMax)||homeworkMaximum(count);
  const advance=items.reduce((sum,x)=>sum+Math.max(0,Number(x.count)||0)*Math.min(14,Math.max(0,hwDaysAhead(x.due,ref))*Number(rules.advancePer)),0);

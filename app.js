@@ -486,19 +486,23 @@ async function demoCall(path,method,body){let result={ok:true};
  if(path==='/me')return {...db,paired:true,role};
  if(path==='/config'){db.config=body;}
 
+
  else if(path==='/run/start'){
   let r=db.runs.find(x=>x.task_id===body.taskId&&x.day===body.day);
   if(!r){
    const t=tasksFor(body.day).find(x=>x.id===body.taskId);
    if(!t||t.homeworkLauncher)throw Error('Mission introuvable');
    if(db.runs.some(x=>x.status==='running'&&x.day===body.day))throw Error('Termine la mission en cours.');
-   const max=taskMaximum(t),goal=Number(body.goalMinutes??t.minutes);
-   if(!Number.isInteger(goal)||goal<1||goal>max)throw Error('Objectif supérieur à la limite parentale.');
-   const [h,m]=t.time.split(':').map(Number),planned=new Date();
+   const limited=taskHasLimit(t),max=limited?taskMaximum(t):null,goal=Number(body.goalMinutes??t.minutes);
+   if(!Number.isInteger(goal)||goal<1||goal>480||(limited&&goal>max))throw Error('Objectif de temps invalide.');
+   const started=nowMs(),[h,m]=t.time.split(':').map(Number),planned=new Date();
    planned.setHours(h,m,0,0);
+   const fixed=scheduleMode(t)==='fixed';
    r={id:rand(),task_id:body.taskId,day:body.day,
-    planned_at:planned.getTime(),started_at:nowMs(),status:'running',
-    validation:t.validation||'self',goal_minutes:goal,max_minutes:max};
+    planned_at:fixed?planned.getTime():started,started_at:started,status:'running',
+    validation:t.validation||'self',goal_minutes:goal,max_minutes:max,has_time_limit:limited,
+    schedule_mode:fixed?'fixed':'flexible',reward_caps:taskCaps(t),
+    homework_caps:t.homeworkBlock?homeworkCaps():null};
    db.runs.unshift(r);
   }
   result.run=r;
@@ -509,8 +513,10 @@ async function demoCall(path,method,body){let result={ok:true};
    const t=tasksFor(r.day).find(x=>x.id===r.task_id);
    if(!t)throw Error('Mission introuvable');
    const duration=Math.max(0,Math.floor((Date.now()-r.started_at)/1000));
-   const late=Math.max(0,Math.floor((r.started_at-r.planned_at)/1000));
-   const max=Number(r.max_minutes)||taskMaximum(t),goal=Number(r.goal_minutes)||t.minutes;
+   const fixed=(r.schedule_mode||scheduleMode(t))==='fixed';
+   const late=fixed?Math.max(0,Math.floor((r.started_at-r.planned_at)/1000)):0;
+   const goal=Number(r.goal_minutes)||t.minutes;
+   const max=r.max_minutes??taskMaximum(t);
    let points;
    if(t.homeworkBlock){
     const b=db.homeworkBlocks.find(x=>x.id===t.id);
@@ -522,16 +528,16 @@ async function demoCall(path,method,body){let result={ok:true};
      return {due:x.due,count:val};
     }).filter(x=>x.count>0);
     if(!hwSum(actual))throw Error('Indique au moins un devoir terminé');
-    points=hwReward(actual,goal,duration,r.day,max);
+    points=hwReward(actual,goal,duration,r.day,null,r.homework_caps||homeworkCaps());
     r.homeworkActual=actual;r.homeworkAdvance=points.advance;
    }else{
-    points=taskReward(t,goal,max,duration,late);
+    const taskAtStart={...t,hasTimeLimit:r.has_time_limit??taskHasLimit(t),scheduleMode:r.schedule_mode||scheduleMode(t)};
+    points=taskReward(taskAtStart,goal,max,duration,late,r.reward_caps||taskCaps(t));
    }
    r.finished_at=Date.now();r.elapsed_s=duration;r.late_s=late;
    r.xp=points.xp;r.coins=points.coins;r.overrun=points.overrun;
-   r.goal_reached=points.fast??points.goalReached;
-   r.speed_factor=points.speed;
-   if(points.overrun){
+   r.goal_reached=points.fast??points.goalReached;r.speed_factor=points.speed;
+   if(points.overrun&&r.has_time_limit!==false){
     const proposal=latePenaltyProposal();
     if(proposal&&(proposal.xp||proposal.coins)){
      r.penaltyProposal=proposal;r.penaltyDecision='pending';

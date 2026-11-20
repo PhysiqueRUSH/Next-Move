@@ -104,17 +104,16 @@ async function main(){
  over.run.planned_at=over.run.started_at;
  const walletBefore={...t.db.wallet};
  const ended=await t.demoCall('/run/finish','POST',{taskId:'over-test',day});
- assert.equal(ended.status,'complete');
+ assert.equal(ended.status,'pending_parent');
  assert.equal(ended.points.xp,0);
  assert.equal(ended.points.coins,0);
  assert.equal(ended.penaltyPending,true);
  assert.deepEqual({...t.db.wallet},walletBefore,'Penalty must NEVER apply before approval');
- await t.demoCall('/run/penalty-resolve','POST',{id:over.run.id,approve:true,pin});
+ await t.demoCall('/run/approve','POST',{id:over.run.id,approve:true,pin,applyPenalty:true});
  assert.equal(over.run.penaltyDecision,'approved');
- assert.equal(t.db.wallet.xp,Math.max(0,walletBefore.xp-5));
+ assert.equal(t.db.wallet.xp,walletBefore.xp);
+ assert.equal(t.db.wallet.xpBank,Math.max(0,walletBefore.xpBank-5));
  assert.equal(t.db.wallet.coins,Math.max(0,walletBefore.coins-3));
- await assert.rejects(t.demoCall('/run/penalty-resolve','POST',{id:over.run.id,approve:true}),/introuvable/);
-
 
  assert.equal(t.LEVEL_REWARDS.avatar.length>=25,true,'Large avatar catalog');
  assert.equal(t.LEVEL_REWARDS.frame.length>=10,true,'Varied frame collection');

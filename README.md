@@ -100,3 +100,28 @@ Le profil comporte 27 avatars, 12 cadres, 22 titres, 11 médailles de niveau et 
 Le bouton **Effacer et recommencer**, dans les réglages parentaux, demande le PIN et la saisie « EFFACER ». Il permet d'effacer les progrès en conservant les missions configurées ou de remettre aussi les tâches et paramètres à zéro. Exporter une sauvegarde JSON au préalable est recommandé.
 
 L'application reste **100 % locale**, installable depuis GitHub Pages, sans compte Google ni Firebase, et sans synchronisation entre appareils.
+
+## NEXT MOVE 4.2 — Validation parentale et conversion XP
+
+### Arrêt immédiat du chrono et validation parentale
+
+- Pour **toutes les missions dont une limite de temps est activée**, Mahé appuie sur **J’ai terminé**. Le chrono est arrêté **immédiatement**, l'heure de fin et la durée réelle sont enregistrées, et le résultat prend le statut **En attente du parent**. Aucun temps supplémentaire n'est ajouté pendant cette attente, même si l'application est fermée.
+- La carte principale affiche alors le chrono **figé**, les gains **en attente** et le bouton **🔐 Faire valider par un parent**.
+- Le parent vérifie physiquement que la mission est terminée, saisit **son PIN de quatre chiffres pour chaque validation** et choisit **Valider** ou **Refuser**. Même si l'espace parent est déjà ouvert, une nouvelle saisie est nécessaire. Un refus ne crédite aucun gain.
+- Le bilan parental permet de retrouver les validations encore en attente. Les gains sont crédités **une seule fois**, après approbation, jamais à l'arrêt du chrono.
+- Si la durée maximale est dépassée, les gains sont **nuls**. Le parent voit la proposition de malus prévue dans les réglages (par défaut 5 XP disponibles et 3 pièces) et choisit de l'appliquer ou non au moment de la validation. Il n'y a **jamais de pénalité automatique**.
+- Pour les missions sans limite, l'ancienne option d'autovalidation ou de validation parentale reste configurable. Les blocs de devoirs restent sans plafond de temps, avec validation parentale facultative.
+- Les exemples de gains « deux fois plus lentement » ont été retirés des écrans de préparation : Mahé voit uniquement son objectif et, si elle est différente, la récompense liée à une réalisation plus rapide.
+
+### Convertir ses XP en pièces dans Cadeaux
+
+- Dans **Paramètres parentaux > Réglages > Échanger des XP contre des pièces**, le parent fixe le nombre d'XP nécessaires pour obtenir **une pièce** (par défaut : **20 XP = 1 pièce**, entièrement modifiable).
+- Dans **Cadeaux**, Mahé indique le nombre de pièces à obtenir. NEXT MOVE affiche le coût puis réalise l'échange s'il dispose d'assez d'XP disponibles. Chaque échange est enregistré et ne peut pas être effectué deux fois avec les mêmes XP.
+- Les **XP disponibles** pour la conversion sont séparés des **XP de progression**. Convertir ses XP ou subir un malus ne fait pas perdre les niveaux, médailles ou titres déjà débloqués.
+- À l'installation de cette mise à jour, les XP de progression déjà acquis deviennent aussi le solde initial d'XP disponibles. La sauvegarde JSON conserve ce nouveau solde ainsi que l'historique des conversions.
+
+### Sécurité et limites
+
+Le PIN local verrouille les validations **dans l'interface**, mais une PWA hébergée sur GitHub Pages ne peut pas empêcher un utilisateur techniquement compétent de modifier le stockage de son propre appareil. Le contrôle parental reste une **vérification réelle de la tâche**, et le PIN n'est **pas une authentification serveur inviolable**. Pour de véritables protections anti-manipulation, une synchronisation et des règles de validation côté serveur seront nécessaires.
+
+En mode local, la version installée sur Android conserve les données dans le stockage du navigateur et peut être utilisée sans Firebase.

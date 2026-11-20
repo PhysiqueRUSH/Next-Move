@@ -68,13 +68,14 @@ function hwDateRows(){return (data.homeworkDates||[]).filter(x=>/^\d{4}-\d{2}-\d
 function hwDaysAhead(due,ref=dayNow()){return Math.round((Date.parse(due+'T12:00:00Z')-Date.parse(ref+'T12:00:00Z'))/86400000);}
 function hwDateText(due){return new Intl.DateTimeFormat('fr-FR',{weekday:'short',day:'numeric',month:'short'}).format(new Date(due+'T12:00:00Z'));}
 function hwSum(items){return items.reduce((sum,x)=>sum+Math.max(0,Number(x.count)||0),0);}
+function hwRules(){return {xpPer:8,coinsPer:2,advancePer:2,volumePer:3,...(data.config.homeworkRules||{})};}
 function hwReward(items,minutesEstimate,seconds,ref=dayNow()){
- const count=hwSum(items);
- const advance=items.reduce((sum,x)=>sum+Math.max(0,Number(x.count)||0)*Math.min(14,Math.max(0,hwDaysAhead(x.due,ref))*2),0);
+ const count=hwSum(items),rules=hwRules();
+ const advance=items.reduce((sum,x)=>sum+Math.max(0,Number(x.count)||0)*Math.min(14,Math.max(0,hwDaysAhead(x.due,ref))*Number(rules.advancePer)),0);
  const fast=Number.isFinite(seconds)&&seconds<=minutesEstimate*60;
- const volume=Math.min(36,Math.max(0,count-1)*3);
- return {xp:Math.min(400,count*8+volume+advance+(fast?Math.min(10,2+count*2):0)),
-         coins:Math.min(150,count*2+Math.min(12,Math.floor(Math.max(0,count-1)*1.5))+Math.floor(advance/2)+(fast?Math.min(5,1+count):0)),
+ const volume=Math.min(36,Math.max(0,count-1)*Number(rules.volumePer));
+ return {xp:Math.min(400,count*Number(rules.xpPer)+volume+advance+(fast?Math.min(10,2+count*2):0)),
+         coins:Math.min(150,count*Number(rules.coinsPer)+Math.min(12,Math.floor(Math.max(0,count-1)*1.5))+Math.floor(advance/2)+(fast?Math.min(5,1+count):0)),
          count,advance,volume,fast};
 }
 function hwReserved(due){
@@ -164,7 +165,7 @@ function renderHomework(){
  }).join('');
  const pickCards=dates.filter(x=>hwAvailable(x.due)>0).map(row=>{
   const picked=Number(homeworkDraft.items[row.due]||0),max=hwAvailable(row.due);
-  return `<div class="hw-pick-row"><div><strong>${escape(hwDateText(row.due))}</strong><small>${hwDaysAhead(row.due)>0?'⭐ +'+Math.min(14,hwDaysAhead(row.due)*2)+' XP/devoir d’avance':hwDaysAhead(row.due)===0?'Échéance aujourd’hui':'Échéance dépassée'} · ${max} dispo.</small></div>
+  return `<div class="hw-pick-row"><div><strong>${escape(hwDateText(row.due))}</strong><small>${hwDaysAhead(row.due)>0?'⭐ +'+Math.min(14,hwDaysAhead(row.due)*Number(hwRules().advancePer))+' XP/devoir d’avance':hwDaysAhead(row.due)===0?'Échéance aujourd’hui':'Échéance dépassée'} · ${max} dispo.</small></div>
    <div class="hw-counter"><button class="hw-compact-btn" data-action="hw-pick-minus" data-due="${row.due}" aria-label="Retirer un devoir">−</button><strong class="hw-count-num">${picked}</strong><button class="hw-compact-btn" data-action="hw-pick-plus" data-due="${row.due}" aria-label="Ajouter un devoir">+</button></div>
   </div>`;
  }).join('');
@@ -283,7 +284,7 @@ function renderAdminStats(){const last7=data.runs.filter(r=>r.day>=futureDays(-6
  const goal=total.length>=15&&early>=75;return `${adminHeading('📊 TABLEAU DE BORD','Évolution de la réactivité, de la rapidité et de la régularité.')}
  <div class="grid2"><div class="stat"><span class="small muted">Démarrages sans retard</span><strong>${early}%</strong></div><div class="stat"><span class="small muted">Retard moyen</span><strong>${avg} min</strong></div><div class="stat"><span class="small muted">Missions réussies (7 j)</span><strong>${last7.length}</strong></div><div class="stat"><span class="small muted">XP cumulés</span><strong>${data.wallet.xp}</strong></div></div>
  <section class="card" style="margin-top:14px"><div class="row between"><h2 style="margin:0">Progression sur 7 jours</h2><span class="pill cyan">Missions</span></div><div class="trend">${byDay.map(d=>`<div style="height:${Math.max(5,d.count/peak*100)}%"><small>${d.day}</small></div>`).join('')}</div><div style="height:12px"></div></section>
- <section class="card" style="margin-top:14px"><h2>✅ Validations en attente (${approved.length})</h2>${approved.map(r=>`<div class="mission"><span>⏱️</span><div class="info"><strong>${escape(data.config.tasks.find(t=>t.id===r.task_id)?.title||data.homework.find(h=>h.id===r.task_id)?.subject||'Mission')}</strong><p>${r.day} · ${pretty(r.elapsed_s||0)} · ${r.xp} XP</p></div><button class="btn mini success" data-action="approve" data-id="${r.id}">✓</button><button class="btn mini danger" data-action="reject" data-id="${r.id}">×</button></div>`).join('')||'<p class="small muted">Aucune mission en attente.</p>'}
+ <section class="card" style="margin-top:14px"><h2>✅ Validations en attente (${approved.length})</h2>${approved.map(r=>`<div class="mission"><span>⏱️</span><div class="info"><strong>${escape(data.config.tasks.find(t=>t.id===r.task_id)?.title||data.homework.find(h=>h.id===r.task_id)?.subject||((data.homeworkBlocks||[]).some(b=>b.id===r.task_id)?'Bloc de devoirs':'Mission'))}</strong><p>${r.day} · ${pretty(r.elapsed_s||0)} · ${r.xp} XP</p></div><button class="btn mini success" data-action="approve" data-id="${r.id}">✓</button><button class="btn mini danger" data-action="reject" data-id="${r.id}">×</button></div>`).join('')||'<p class="small muted">Aucune mission en attente.</p>'}
  <div class="divider"></div><h2>🎁 Demandes de récompense (${redeems.length})</h2>${redeems.map(r=>`<div class="mission"><span>🪙</span><div class="info"><strong>${escape(data.config.rewards.find(x=>x.id===r.reward_id)?.name||'Récompense')}</strong><p>${r.cost} pièces</p></div><button class="btn mini success" data-action="reward-approve" data-id="${r.id}">✓</button><button class="btn mini danger" data-action="reward-reject" data-id="${r.id}">×</button></div>`).join('')||'<p class="small muted">Aucune demande en attente.</p>'}</section>
  <section class="card" style="margin-top:14px"><h2>🧠 Progression d’autonomie</h2><p class="small muted">Mode actuel : <b>${['','Guidé','Semi-autonome','Autonome'][data.config.rankMode||1]}</b>. Les changements sont proposés selon les résultats, mais validés par toi.</p><div class="progress"><span style="width:${early}%"></span></div><p class="small">${goal?'🏅 Mahé pourrait passer au palier suivant : ses démarrages sont réguliers.':'Objectif indicatif : au moins 15 missions réussies et 75 % de départs sans retard.'}</p><button class="btn" data-action="autonomy">Changer le palier</button></section>
  <section class="card" style="margin-top:14px"><h2>🪙 Pénalités manuelles</h2><p class="small muted">Aucune pénalité n’est automatique. Tu choisis un manquement et confirmes un petit retrait en pièces (maximum 20 par opération, solde jamais négatif).</p><button class="btn danger" data-action="penalty">Examiner une pénalité</button></section>`;
@@ -299,10 +300,16 @@ function renderAdminRewards(){return `${adminHeading('🪙 BOUTIQUE & DÉFIS','�
  <div class="row" style="margin:12px 0"><button class="btn primary" data-action="edit-reward">+ Récompense</button><button class="btn" data-action="add-challenge">+ Défi parental</button></div>
  <div class="stack">${data.config.rewards.map(r=>`<div class="reward"><span class="emoji">${escape(r.icon)}</span><div class="info"><strong>${escape(r.name)}</strong><p>${r.cost} pièces · ${r.active===false?'Inactif':'Actif'}</p></div><button class="btn mini" data-action="edit-reward" data-id="${r.id}">Modifier</button></div>`).join('')}</div>
  <section class="card" style="margin-top:14px"><h2>Défis créés par le parent</h2>${(data.config.customChallenges||[]).map(c=>`<div class="mission"><span>🎯</span><div class="info"><strong>${escape(c.name)}</strong><p>${escape(c.description)} · ${c.coins} pièces</p></div><button class="btn mini success" data-action="award-challenge" data-id="${c.id}">+ pièces</button><button class="btn mini danger" data-action="del-challenge" data-id="${c.id}">×</button></div>`).join('')||'<p class="muted small">Aucun défi ajouté.</p>'}</section>`}
-function renderAdminSettings(){return `${adminHeading('⚙️ RÉGLAGES','Gestion du compte familial, du jumelage, de PRONOTE et de la sauvegarde.')}
+function renderAdminSettings(){const rules=hwRules();return `${adminHeading('⚙️ RÉGLAGES','Gestion du compte familial, du jumelage, de PRONOTE et de la sauvegarde.')}
  <section class="card"><h2>Compte parent</h2><p class="small muted">Stockage local sur le téléphone de Mahé</p><div class="row wrap"><button class="btn" data-action="change-pin">Changer mon PIN</button><button class="btn" data-action="export">Exporter ma sauvegarde</button><button class="btn" data-action="import">Restaurer une sauvegarde</button><input id="backup-import" type="file" accept="application/json,.json" hidden>${connected?'<button class="btn danger" data-action="logout">Déconnexion Google</button>':''}</div></section>
  <section class="card" style="margin-top:14px"><h2>📱 Données sur cet appareil</h2><p class="small muted">Les missions, XP, récompenses et historiques restent sur ce Samsung. Exporter une sauvegarde est indispensable avant de changer de téléphone ou d'effacer les données de Chrome. Le PIN est une protection d'interface, pas un coffre-fort inviolable.</p><div id="pair-code"></div></section>
  <section class="card" style="margin-top:14px"><h2>Configuration générale</h2><div class="field"><label>Prénom</label><input id="child-name" value="${escape(data.config.childName||'Mahé')}" maxlength="30"></div><div class="field"><label>URL PRONOTE (facultatif)</label><input id="pronote-url" value="${escape(data.config.pronoteUrl||'')}" placeholder="https://..."></div><div class="field"><label>Niveau d’autonomie</label><select id="rank-mode"><option value="1" ${data.config.rankMode===1?'selected':''}>Guidé</option><option value="2" ${data.config.rankMode===2?'selected':''}>Semi-autonome</option><option value="3" ${data.config.rankMode===3?'selected':''}>Autonome</option></select></div><button class="btn primary" data-action="save-settings">Enregistrer</button></section>
+ <details class="card" style="margin-top:14px"><summary style="font-weight:850;cursor:pointer">📚 Récompenses des blocs de devoirs</summary><form id="hw-rules" style="margin-top:16px"><div class="form-grid">
+ ${field('XP par devoir terminé','xpPer','number',rules.xpPer,'min="0" max="30" required')}
+ ${field('Pièces par devoir terminé','coinsPer','number',rules.coinsPer,'min="0" max="20" required')}
+ ${field('XP par jour d’avance et par devoir','advancePer','number',rules.advancePer,'min="0" max="6" required')}
+ ${field('XP supplémentaires par devoir du bloc après le premier','volumePer','number',rules.volumePer,'min="0" max="10" required')}
+ </div><p class="small muted">L’avance et le volume sont plafonnés. Le bonus de chrono est accordé seulement si le temps estimé est respecté.</p><button class="btn primary block" type="submit">Enregistrer ce barème</button></form></details>
  <section class="card" style="margin-top:14px"><div class="row between"><h2 style="margin:0">📁 Catégories éditables</h2><button class="btn mini primary" data-action="category-add">+ Catégorie</button></div><div class="mission-list" style="margin-top:12px">${categoryList().map((c,i)=>`<div class="mission"><span class="time">${i+1}</span><div class="info"><strong>${escape(c)}</strong></div><button class="btn mini" data-action="category-edit" data-id="${i}">Modifier</button><button class="btn mini danger" data-action="category-delete" data-id="${i}">×</button></div>`).join('')}</div></section>
  <section class="card" style="margin-top:14px"><h2>🔔 Notifications</h2><p class="small muted">Mahé doit activer les notifications depuis son téléphone. Une seule notification-défi par mission, hors des plages silencieuses.</p><p class="small muted">Sans serveur, les rappels apparaissent uniquement lorsque NEXT MOVE est ouvert. Aucune notification garantie lorsque l’application est fermée.</p></section>`}
 function renderPairing(){$('#app').innerHTML=`<main class="app"><div class="setup"><div class="mark" style="justify-content:center"><div class="mark-icon">ϟ</div><div class="brand">NEXT MOVE</div></div><h1>Prêt pour l’aventure ?</h1><p>Associe ce téléphone à ton espace familial ou connecte-toi comme parent.</p><section class="card"><h2>🎮 Je suis Mahé</h2><div class="field"><label>Code donné par le parent</label><input id="join-code" placeholder="CODE DE JUMELAGE" autocomplete="off"></div><button class="btn primary block" data-action="claim-pair">Associer mon téléphone</button></section><section class="card" style="margin-top:12px"><h2>🔐 Je suis le parent</h2><button class="btn block" data-action="google-login">Me connecter avec Google</button></section></div></main>`}
@@ -581,6 +588,15 @@ async function onForm(event){const form=event.target;if(!form.id)return;event.pr
   const old=db.homeworkDates.find(x=>x.due===due);if(!old)throw Error('Date introuvable');
   if(count===0)db.homeworkDates=db.homeworkDates.filter(x=>x.due!==due);else old.count=count;
   closeModal();hwPersist();
+ }
+ else if(form.id==='hw-rules'){
+  if(role!=='parent'||!pinUnlocked)throw Error('Accès parent requis');
+  const c=cloneConfig(),rules={};
+  for(const [key,max] of [['xpPer',30],['coinsPer',20],['advancePer',6],['volumePer',10]]){
+   const value=Number(get(key));if(!Number.isInteger(value)||value<0||value>max)throw Error('Barème invalide');
+   rules[key]=value;
+  }
+  c.homeworkRules=rules;await updateConfig(c);
  }
  else if(form.id==='hw-finish'){
   const b=(db.homeworkBlocks||[]).find(x=>x.id===form.dataset.id);

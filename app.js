@@ -82,7 +82,7 @@ function taskReward(t,goalMinutes,maxMinutes,seconds,late,overrides){
  const hasLimit=taskHasLimit(t);
  if(hasLimit&&seconds>max*60)return {xp:0,coins:0,overrun:true,speed:0,goalReached:false};
  const speed=speedFactor(seconds,goal),met=goalReached(seconds,goal);
- const punctual=scheduleMode(t)==='fixed'&&Number(late)===0?1:0;
+ const punctual=scheduleMode(t)==='flexible'||Number(late)===0?1:0;
  const score=clamp(.22+.57*speed+(met?.09:0)+.12*punctual,0,1);
  return {xp:Math.round(cap.xp*score),coins:Math.round(cap.coins*score),overrun:false,speed,goalReached:met};
 }
@@ -299,8 +299,8 @@ function renderToday(){
   const hasLimit=running?r.has_time_limit!==false:taskHasLimit(mission);
   const parentLimit=hasLimit?(running?Number(r.max_minutes)||taskMaximum(mission):taskMaximum(mission)):null;
   const category=escape(categoryList()[mission.category]||'🎯 Mission');
-  const maxXp=mission.homeworkBlock?hwSum(mission.items||[])*homeworkCaps().xp:taskCaps(mission).xp;
-  const maxCoins=mission.homeworkBlock?hwSum(mission.items||[])*homeworkCaps().coins:taskCaps(mission).coins;
+  const maxXp=mission.homeworkBlock?hwSum(mission.items||[])*(r?.homework_caps?.xp??homeworkCaps().xp):(r?.reward_caps?.xp??taskCaps(mission).xp);
+  const maxCoins=mission.homeworkBlock?hwSum(mission.items||[])*(r?.homework_caps?.coins??homeworkCaps().coins):(r?.reward_caps?.coins??taskCaps(mission).coins);
   hero=`<section class="nm-mission-card">
    <div class="nm-eyebrow"><span class="nm-pulse"></span>${running?'DÉFI EN COURS':'TA PROCHAINE MISSION'}</div>
    <h1 class="nm-mission-title">${escape(mission.title)}</h1>

@@ -70,7 +70,7 @@ db.claimedLevels=Array.isArray(db.claimedLevels)?db.claimedLevels:Array.from({le
 const saveDemo=()=>localStorage.setItem(demoKey,JSON.stringify(db));
 let data={role:'child',config:defaultConfig(false),wallet:{xp:0,coins:0,xpBank:0},exchanges:[],runs:[],requests:[],homework:[],ledger:[],plans:[],paired:false};
 let homeworkDraft={items:{},estimate:20,manualEstimate:false};
-let auth=null,uid=null,role='child',tab='today',adminTab='stats',pinUnlocked=false,activeDay=dayNow(),selectedRecord=null,online=!!navigator.onLine,serviceWorker=null,initDone=false,renderVersion=0;
+let auth=null,uid=null,role='child',tab='planning',adminTab='stats',pinUnlocked=false,activeDay=dayNow(),selectedRecord=null,online=!!navigator.onLine,serviceWorker=null,initDone=false,renderVersion=0;
 const pinKey='nextmove_parent_pin_v1';
 const beep=(freq=620,time=.14)=>{if(localStorage.getItem('nm_mute')==='yes')return;try{const A=window.AudioContext||window.webkitAudioContext,a=new A(),o=a.createOscillator(),g=a.createGain();o.type='sine';o.frequency.value=freq;g.gain.setValueAtTime(.001,a.currentTime);g.gain.exponentialRampToValueAtTime(.06,a.currentTime+.018);g.gain.exponentialRampToValueAtTime(.001,a.currentTime+time);o.connect(g).connect(a.destination);o.start();o.stop(a.currentTime+time);setTimeout(()=>a.close(),500);}catch{}};
 const toast=(msg)=>{const el=document.createElement('div');el.className='toast';el.textContent=msg;$('#toast-root').appendChild(el);setTimeout(()=>el.remove(),3500)};
@@ -342,7 +342,7 @@ function render(){if(!initDone)return;
  if(connected&&!data.paired&&role==='child'){renderPairing();return;}
  if(parentGuard()){renderPin();return;}
  const lev=levelInfo(data.wallet.xp),isParent=role==='parent';
- const nav=isParent?[['stats','📊','Bilan'],['tasks','🎯','Missions'],['calendar','📅','Planning'],['rewards','🪙','Boutique'],['settings','⚙️','Réglages']]:[['today','⚡','Mission'],['planning','📅','Journée'],['challenges','🏆','Défis'],['shop','🎁','Cadeaux']];
+ const nav=isParent?[['stats','📊','Bilan'],['tasks','🎯','Missions'],['calendar','📅','Planning'],['rewards','🪙','Boutique'],['settings','⚙️','Réglages']]:[['planning','🎯','Missions'],['challenges','🏆','Défis'],['shop','🎁','Cadeaux']];
  const current=isParent?adminTab:tab;
  const header=`<div class="header"><div class="mark"><div class="mark-icon">ϟ</div><div><div class="brand">NEXT MOVE</div></div></div><div class="header-actions">${isParent?'<button class="iconbtn" data-action="switch-child" aria-label="Retour à Mahé" title="Retour">↩</button>':`<button class="iconbtn nm-avatar-button" data-action="tab" data-id="profile" aria-label="Mon profil" title="Mon profil">${escape(data.config.avatar||'🚀')}</button><button class="iconbtn" data-action="parent-entry" aria-label="Réglages parentaux" title="Réglages parentaux">⚙️</button>`}</div></div>`;
  const demo='';
@@ -350,7 +350,7 @@ function render(){if(!initDone)return;
  $('#app').innerHTML=`<main class="app ${isParent?'parent-app':'child-app'}">${header}${demo}${page}</main><nav class="tabs" aria-label="Navigation">${nav.map(([key,icon,label])=>`<button data-action="tab" data-id="${key}" class="${current===key?'active':''}"><span>${icon}</span>${label}</button>`).join('')}</nav>`;
  window.scrollTo({top:scroll,behavior:'instant'});clockTick();
 }
-function renderChild(){switch(tab){case 'homework':return renderHomework();case 'planning':return renderPlanning();case 'challenges':return renderChallenges();case 'shop':return renderShop();case 'profile':return renderProfile();case 'parent-settings':return renderParentAccess();default:return renderToday();}}
+function renderChild(){switch(tab){case 'homework':return renderHomework();case 'challenges':return renderChallenges();case 'shop':return renderShop();case 'profile':return renderProfile();case 'parent-settings':return renderParentAccess();default:return renderPlanning();}}
 function renderParentAccess(){return `<section class="nm-mission-card nm-empty-screen"><span class="nm-emoji">🔐</span><h1>Réglages parentaux</h1><p>Accès réservé au parent.</p><button class="btn primary block" data-action="parent-entry">Saisir mon code</button></section>`}
 
 function renderHomework(){
@@ -843,7 +843,7 @@ async function refresh(quiet=false){if(!initDone)return;try{const result=await c
   const initial=defaultConfig(false);await call('/config','PUT',initial);data.config=initial;
  }if(!quiet)toast('Données actualisées');render()}catch(e){if(!quiet)toast(e.message);if(e.message==='NOT_PAIRED'){data.paired=false;role='child';render()}else if(connected){const local=localStorage.getItem('nm_state_cache');if(local){const cached=JSON.parse(local);data={...data,...cached};render()}}}}
 function storeCache(){if(connected){const safe={config:data.config,runs:data.runs,wallet:data.wallet,homework:data.homework,requests:data.requests,paired:data.paired};localStorage.setItem('nm_state_cache',JSON.stringify(safe))}}
-async function changeTab(which){if(role==='parent')adminTab=which;else {tab=which;if(which==='today')activeDay=dayNow();}render();window.scrollTo(0,0)}
+async function changeTab(which){if(role==='parent')adminTab=which;else {tab=which==='today'?'planning':which;if(which==='planning'||which==='today')activeDay=dayNow();}render();window.scrollTo(0,0)}
 
 
 function taskProjectedLate(t){
@@ -1033,7 +1033,7 @@ async function hwCreateAndStart(){
  const original=data.config.tasks.find(t=>t.id==='homework');
  const block={id:'hb-'+rand(),day:dayNow(),time:localTime(),estimate,items,validation:original?.validation==='parent'?'parent':'self'};
  db.homeworkBlocks.push(block);saveDemo();data={...db};
- homeworkDraft={items:{},estimate:20,manualEstimate:false};activeDay=dayNow();tab='today';
+ homeworkDraft={items:{},estimate:20,manualEstimate:false};activeDay=dayNow();tab='planning';
  await startTask(block.id,estimate);
 }
 
@@ -1041,7 +1041,7 @@ const actions={
  'tab':(_,el)=>changeTab(el.dataset.id),
  'day-prev':()=>{activeDay=futureDate(activeDay,-1);render()},
  'day-next':()=>{activeDay=futureDate(activeDay,1);render()},
- 'start':async(_,el)=>{tab='today';activeDay=dayNow();await startTask(el.dataset.id);window.scrollTo(0,0)},
+ 'start':async(_,el)=>{tab='planning';activeDay=dayNow();await startTask(el.dataset.id);window.scrollTo(0,0)},
  'goal-minus':()=>{const input=$('#goal-minutes');if(input){input.value=Math.max(Number(input.min)||1,(Number(input.value)||1)-1);refreshGoalPreview()}},
  'goal-plus':()=>{const input=$('#goal-minutes');if(input){input.value=Math.min(Number(input.max)||480,(Number(input.value)||1)+1);refreshGoalPreview()}},
  'finish':(_,el)=>finishTask(el.dataset.id),
@@ -1058,7 +1058,7 @@ const actions={
  'pronote':()=>openPronote(),
  'add-homework':()=>{tab='homework';render()},
  'show-homework':()=>{tab='homework';render();window.scrollTo(0,0)},
- 'homework-to-mission':()=>{tab='today';activeDay=dayNow();render()},
+ 'homework-to-mission':()=>{tab='planning';activeDay=dayNow();render()},
  'hw-count-minus':(_,el)=>hwAdjustCount(el.dataset.due,-1),
  'hw-count-plus':(_,el)=>hwAdjustCount(el.dataset.due,1),
  'hw-edit-count':(_,el)=>modalHomeworkCount(el.dataset.due),
@@ -1176,7 +1176,7 @@ async function performReset(mode,pin,phrase){
  if(phrase!=='EFFACER'||!(/^\d{4}$/).test(pin)||await hashPin(pin)!==localStorage.getItem(pinKey))
   throw Error('Confirmation ou code PIN incorrect');
  resetState(mode);
- role='child';pinUnlocked=false;activeDay=dayNow();tab='today';
+ role='child';pinUnlocked=false;activeDay=dayNow();tab='planning';
  closeModal();render();toast('NEXT MOVE a été réinitialisé');
 }
 function penaltyModal(){const misses=tasksFor(dayNow()).filter(t=>!runFor(t.id,dayNow()));openModal(`<h2>🪙 Pénalité sur décision parentale</h2><p class="helper">Aucune perte de XP ni de trophées. Retrait maximal de 20 pièces, uniquement après ton accord.</p><form id="penalty-form">${selectField('Mission concernée','taskId',(misses.length?misses:tasksFor(dayNow())).map(t=>[t.id,t.title]),misses[0]?.id||'')}${field('Date','day','date',dayNow(),'required')}${field('Pièces à retirer','coins','number',3,'min="1" max="20" required')}<div class="form-actions"><button type="button" class="btn" data-action="close-modal">Annuler</button><button class="btn danger">Confirmer la pénalité</button></div></form>`)}
@@ -1229,7 +1229,7 @@ async function onForm(event){const form=event.target;if(!form.id)return;event.pr
   if(!Number.isInteger(goal))throw Error('Objectif invalide');
   const t=tasksFor(dayNow()).find(x=>x.id===taskId);
   if(!t||goal<1||goal>480||(taskHasLimit(t)&&goal>taskMaximum(t)))throw Error('Objectif invalide');
-  closeModal();tab='today';activeDay=dayNow();await startTask(taskId,goal);
+  closeModal();tab='planning';activeDay=dayNow();await startTask(taskId,goal);
  }
  else if(form.id==='hw-add-date'){
   const due=get('due'),count=Number(get('count'));

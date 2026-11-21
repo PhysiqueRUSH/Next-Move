@@ -1156,7 +1156,7 @@ function resetState(mode){
  if(!['progress','all'].includes(mode))throw Error('Mode de remise à zéro invalide');
  const config=mode==='all'?{...defaultConfig(false),tasks:[]}:JSON.parse(JSON.stringify(db.config));
  config.avatar='🚀';config.frame='neon';config.title='Recrue';
- db={config,runs:[],ledger:[],wallet:{xp:0,coins:0,xpBank:0},exchanges:[],requests:[],homework:[],homeworkDates:[],homeworkBlocks:[],plans:[],claimedLevels:[1],role:'child'};
+ db={config,runs:[],ledger:[],wallet:{xp:0,coins:0,xpBank:0},exchanges:[],spontaneousAwards:[],requests:[],homework:[],homeworkDates:[],homeworkBlocks:[],plans:[],claimedLevels:[1],role:'child'};
  saveDemo();
  for(const key of ['nm_offline_runs','nm_offline_running','nm_state_cache'])localStorage.removeItem(key);
  for(let n=localStorage.length-1;n>=0;n--){
@@ -1182,7 +1182,7 @@ async function restoreBackup(file){
   const x=JSON.parse(await file.text()),d=x?.data;
   if(!d||!d.config||!Array.isArray(d.config.tasks)||!Array.isArray(d.config.rewards)||!Array.isArray(d.runs)||!Array.isArray(d.requests)||!d.wallet||!Array.isArray(d.homework)||!Array.isArray(d.plans))throw Error('Fichier NEXT MOVE non reconnu');
   if(!confirm('Restaurer cette sauvegarde remplacera TOUTES les données actuelles de NEXT MOVE sur ce téléphone. Continuer ?'))return;
-  db={config:d.config,runs:d.runs,ledger:Array.isArray(d.ledger)?d.ledger:[],wallet:{...d.wallet,xpBank:Number.isFinite(d.wallet.xpBank)?d.wallet.xpBank:Math.max(0,Number(d.wallet.xp)||0)},exchanges:Array.isArray(d.exchanges)?d.exchanges:[],requests:d.requests,homework:d.homework,plans:d.plans,homeworkDates:Array.isArray(d.homeworkDates)?d.homeworkDates:[],homeworkBlocks:Array.isArray(d.homeworkBlocks)?d.homeworkBlocks:[],claimedLevels:Array.isArray(d.claimedLevels)?d.claimedLevels:Array.from({length:levelInfo(d.wallet.xp).n},(_,i)=>i+1),role:'child'};
+  db={config:d.config,runs:d.runs,ledger:Array.isArray(d.ledger)?d.ledger:[],wallet:{...d.wallet,xpBank:Number.isFinite(d.wallet.xpBank)?d.wallet.xpBank:Math.max(0,Number(d.wallet.xp)||0)},exchanges:Array.isArray(d.exchanges)?d.exchanges:[],requests:d.requests,homework:d.homework,plans:d.plans,homeworkDates:Array.isArray(d.homeworkDates)?d.homeworkDates:[],homeworkBlocks:Array.isArray(d.homeworkBlocks)?d.homeworkBlocks:[],spontaneousAwards:Array.isArray(d.spontaneousAwards)?d.spontaneousAwards:[],claimedLevels:Array.isArray(d.claimedLevels)?d.claimedLevels:Array.from({length:levelInfo(d.wallet.xp).n},(_,i)=>i+1),role:'child'};
   saveDemo();data={...db};role='child';pinUnlocked=false;tab='today';render();toast('✅ Sauvegarde restaurée.');
  }catch(e){toast('Import impossible : '+e.message)}
 }

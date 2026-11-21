@@ -110,3 +110,19 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--cyan);outline
 .nm-sp-parent-rule .form-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
 .nm-sp-parent-rule .form-grid input{min-width:0;padding:8px}
 @media(max-width:390px){.nm-spontaneous-panel{padding:14px 11px}.nm-spontaneous-task{flex-wrap:wrap}.nm-spontaneous-done{width:100%}.nm-sp-parent-rule .form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Vue unique Missions : planning lisible et actions contextuelles */
+.nm-agenda-row{align-items:center;gap:10px;padding:14px 11px;min-height:78px}
+.nm-agenda-row .info{min-width:0;flex:1}
+.nm-agenda-row .info strong{font-size:14px}
+.nm-agenda-row .info p{font-size:11px;line-height:1.45}
+.nm-agenda-row .nm-list-action{flex-shrink:0;min-height:42px;max-width:136px;white-space:normal;line-height:1.15;padding:10px;font-weight:850}
+.nm-agenda-running{border-color:#399b94!important;background:linear-gradient(130deg,#193b43,#15263a)!important}
+.nm-inline-clock{font-size:24px;font-weight:950;letter-spacing:1px;color:#80f5e3;margin-top:8px;font-variant-numeric:tabular-nums}
+.nm-inline-clock.overtime{color:#ffb178}
+.nm-spontaneous-actions{display:flex;flex-direction:column;align-items:stretch;gap:7px;min-width:96px}
+.nm-spontaneous-pending{font-size:11px;border:1px solid #6b72a8;background:#313a5d;color:#dfddff;border-radius:10px;min-height:37px;padding:7px}
+@media(max-width:390px){
+ .nm-agenda-row .nm-list-action{max-width:110px;font-size:12px}
+ .nm-spontaneous-actions{min-width:100%}
+}

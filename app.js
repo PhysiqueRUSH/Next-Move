@@ -227,7 +227,7 @@ function tasksFor(s){const m=modeFor(s),d=dayOf(s),ex=(data.config.exceptions||[
  return (fixA?a.time.localeCompare(b.time):0)||a.priority-b.priority;
 });
 }
-const runFor=(taskId,day=activeDay)=>data.runs.find(r=>r.task_id===taskId&&r.day===day);
+const runFor=(taskId,day=activeDay)=>data.runs.find(r=>r.task_id===taskId&&r.day===day&&!r.spontaneous);
 const isDone=r=>r&&['complete','pending_parent','rejected'].includes(r.status);
 const getActive=(day=activeDay)=>{
  const tasks=tasksFor(day),running=tasks.find(t=>runFor(t.id,day)?.status==='running');
@@ -322,13 +322,17 @@ function renderSpontaneousPanel(day=dayNow()){
   <p class="nm-spontaneous-hint">Des bonus de fréquence et de régularité t’attendent dans 🏆 Défis.</p>
  </section>`;
 }
+let spontaneousBusy=false;
 async function completeSpontaneous(taskId){
+ if(spontaneousBusy)return;
+ spontaneousBusy=true;
  try{
   const result=await call('/spontaneous/complete','POST',{taskId});
   await refresh(true);
   if(result.status==='pending_parent')toast('⏳ À faire valider par un parent.');
   else {beep(860,.12);toast('⚡ +'+result.points.xp+' XP · +'+result.points.coins+' 🪙'+(result.bonus?.names?.length?' · 🏆 Défi débloqué !':''));}
  }catch(e){toast('Mission non enregistrée : '+e.message)}
+ finally{spontaneousBusy=false;}
 }
 
 function walletBadge(){return `<span class="pill gold">🪙 ${Number(data.wallet.coins)||0}</span><span class="pill cyan">⚡ ${Number(data.wallet.xp)||0} XP</span>`}
@@ -425,7 +429,8 @@ function renderToday(){
  const name=escape(data.config.childName||'Mahé');
  let hero='';
  if(!mission){
-  hero=`<section class="nm-mission-card nm-empty-screen"><span class="nm-emoji">${all.length?'🏆':'🌟'}</span><h1>${all.length?'Tous les défis sont terminés !':'Rien de prévu aujourd’hui'}</h1><p>${all.length?'Bravo, tu as assuré !':'Tu peux profiter de ton temps libre.'}</p><button class="btn primary" data-action="tab" data-id="challenges">Voir mes trophées</button></section>`;
+  const spontan=spontaneousTasksFor(activeDay).length>0;
+  hero=`<section class="nm-mission-card nm-empty-screen"><span class="nm-emoji">${all.length?'🏆':'🌟'}</span><h1>${all.length?'Missions classiques terminées !':spontan?'À toi les missions spontanées !':'Rien de prévu aujourd’hui'}</h1><p>${spontan?'Tu peux refaire les missions spontanées ci-dessous autant que tu veux.':all.length?'Bravo, tu as assuré !':'Tu peux profiter de ton temps libre.'}</p><button class="btn primary" data-action="tab" data-id="challenges">Voir mes trophées</button></section>`;
   }else if(mission&&runFor(mission.id,activeDay)?.status==='pending_parent'){
   const r=runFor(mission.id,activeDay),goal=Math.max(1,Number(r.goal_minutes)||mission.minutes);
   const remain=goal*60-Math.max(0,Number(r.elapsed_s)||0);
@@ -715,7 +720,7 @@ async function demoCall(path,method,body){let result={ok:true};
   }
  }
  else if(path==='/run/start'){
-  let r=db.runs.find(x=>x.task_id===body.taskId&&x.day===body.day);
+  let r=db.runs.find(x=>x.task_id===body.taskId&&x.day===body.day&&!x.spontaneous);
   if(!r){
    const t=tasksFor(body.day).find(x=>x.id===body.taskId);
    if(!t||t.homeworkLauncher)throw Error('Mission introuvable');
@@ -735,7 +740,7 @@ async function demoCall(path,method,body){let result={ok:true};
   result.run=r;
  }
  else if(path==='/run/finish'||path==='/run/offline'){
-  const r=db.runs.find(x=>x.task_id===body.taskId&&x.day===body.day);
+  const r=db.runs.find(x=>x.task_id===body.taskId&&x.day===body.day&&!x.spontaneous);
   if(r&&r.status==='running'){
    const t=tasksFor(r.day).find(x=>x.id===r.task_id);
    if(!t)throw Error('Mission introuvable');
@@ -1327,6 +1332,7 @@ async function bootstrap(){
   if(e.target.id==='f-missionType'&&e.target.value==='spontaneous'){
    const xp=$('#f-xpMax'),coins=$('#f-coinsMax');
    if(xp)xp.value=8;if(coins)coins.value=2;
+   const validation=$('#f-validation');if(validation)validation.value='parent';
   }
   refreshTaskEditorVisibility();
  }if(e.target.id==='backup-import')await restoreBackup(e.target.files?.[0]);if(e.target.id==='hw-duration'){const x=Number(e.target.value);if(Number.isInteger(x)&&x>=1&&x<=480){homeworkDraft.estimate=x;homeworkDraft.manualEstimate=true;render();}}});

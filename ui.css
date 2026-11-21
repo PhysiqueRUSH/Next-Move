@@ -81,3 +81,32 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--cyan);outline
 /* Sections de planning séparées pour Mahé */
 .nm-planner-section{font-size:16px;font-weight:900;letter-spacing:-.2px;color:#d8f2ff;margin:20px 1px 11px}
 .nm-planner-section:first-of-type{margin-top:5px}
+
+/* Tâches spontanées : petites réalisations répétables, sans chrono */
+.nm-spontaneous-panel{margin:17px 0 10px;padding:17px 15px;border-radius:21px;border:1px solid #307c77;background:linear-gradient(150deg,#15333e,#111d32 75%);box-shadow:0 10px 34px #06111c33}
+.nm-spontaneous-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:13px}
+.nm-spontaneous-head h2{margin:0;color:#e5ffff;font-size:18px;font-weight:900}
+.nm-spontaneous-head p{font-size:12px;color:#acd7df;margin:6px 0 0}
+.nm-spontaneous-total{color:#80f6d8;border:1px solid #377f7b;padding:6px 9px;border-radius:10px;background:#0d2938;white-space:nowrap;font-size:12px;font-weight:900}
+.nm-spontaneous-list{display:flex;flex-direction:column;gap:9px}
+.nm-spontaneous-task{display:flex;justify-content:space-between;align-items:center;gap:8px;background:#1a2c43;border:1px solid #375774;border-radius:15px;padding:12px 10px}
+.nm-spontaneous-description{min-width:0;display:flex;flex-direction:column;gap:7px}
+.nm-spontaneous-description strong{font-size:14px;color:#f4ffff;overflow-wrap:anywhere}
+.nm-spontaneous-description span{font-size:11px;line-height:1.4;color:#b5d6e2}
+.nm-spontaneous-done{flex-shrink:0;min-height:46px;min-width:90px;border-radius:13px;font-size:13px;font-weight:900;touch-action:manipulation}
+.nm-spontaneous-hint{font-size:11px;color:#9ec8d5;margin:12px 2px 0;line-height:1.5}
+.nm-spontaneous-challenges{margin-top:14px}
+.nm-spontaneous-challenge{padding:13px 0;border-bottom:1px solid #30475e}
+.nm-spontaneous-challenge:last-child{border:0}
+.nm-spontaneous-challenge-title{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.nm-spontaneous-challenge-title strong{font-size:14px}
+.nm-spontaneous-challenge-title span{font-weight:850;font-size:12px;color:#8ef3db;white-space:nowrap}
+.nm-spontaneous-challenge p{font-size:12px;line-height:1.4;color:#abc3dc;margin:6px 0 10px}
+.nm-spontaneous-challenge b{color:#ffe8b4}
+.nm-spontaneous-challenge .progress{height:7px}
+.nm-spontaneous-settings .nm-sp-parent-rule{padding:15px 0;border-bottom:1px solid #2d4663}
+.nm-sp-parent-rule>strong{display:block;margin:0 0 12px}
+.nm-sp-parent-rule .field label{font-size:12px}
+.nm-sp-parent-rule .form-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.nm-sp-parent-rule .form-grid input{min-width:0;padding:8px}
+@media(max-width:390px){.nm-spontaneous-panel{padding:14px 11px}.nm-spontaneous-task{flex-wrap:wrap}.nm-spontaneous-done{width:100%}.nm-sp-parent-rule .form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}

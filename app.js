@@ -316,7 +316,10 @@ function renderSpontaneousPanel(day=dayNow()){
    return `<div class="nm-spontaneous-task">
     <div class="nm-spontaneous-description"><strong>${escape(t.title)}</strong>
     <span>✓ ${done} fois · +${cap.xp} XP · +${cap.coins} 🪙 par fois${pending?` · ⏳ ${pending} à valider`:''}</span></div>
-    ${isToday?`<button class="btn primary nm-spontaneous-done" data-action="spontaneous-done" data-id="${escape(t.id)}">✓ FAIT !</button>`:''}
+    ${isToday?`<div class="nm-spontaneous-actions">
+      <button class="btn primary nm-spontaneous-done" data-action="spontaneous-done" data-id="${escape(t.id)}">✓ FAIT !</button>
+      ${pending?`<button class="btn mini nm-spontaneous-pending" data-action="open-run-approval" data-id="${escape((data.runs||[]).find(r=>r.spontaneous&&r.status==='pending_parent'&&r.task_id===t.id&&r.day===day)?.id||'')}">🔐 Faire valider (${pending})</button>`:''}
+     </div>`:''}
    </div>`;
   }).join('')}</div>
   <p class="nm-spontaneous-hint">Des bonus de fréquence et de régularité t’attendent dans 🏆 Défis.</p>
@@ -329,7 +332,7 @@ async function completeSpontaneous(taskId){
  try{
   const result=await call('/spontaneous/complete','POST',{taskId});
   await refresh(true);
-  if(result.status==='pending_parent')toast('⏳ À faire valider par un parent.');
+  if(result.status==='pending_parent'){toast('🔐 Demande le PIN à un parent pour valider.');modalApproveRun(result.runId);}
   else {beep(860,.12);toast('⚡ +'+result.points.xp+' XP · +'+result.points.coins+' 🪙'+(result.bonus?.names?.length?' · 🏆 Défi débloqué !':''));}
  }catch(e){toast('Mission non enregistrée : '+e.message)}
  finally{spontaneousBusy=false;}
@@ -954,7 +957,7 @@ async function finishTask(taskId){
   await refresh(true);
   if(result.status==='pending_parent'){
    toast('⏸️ Chrono figé · validation parentale');
-   if(limited)modalApproveRun(result.runId||runFor(taskId,activeDay)?.id);
+   modalApproveRun(result.runId||runFor(taskId,activeDay)?.id);
   }else if(result.overrun)toast('⌛ Temps limite dépassé · aucun gain');
   else celebration('Mission terminée ! +'+result.points.xp+' XP'+(result.levelCoins?' · +'+result.levelCoins+' pièces de niveau':''));
  }catch(e){
@@ -1294,7 +1297,7 @@ async function onForm(event){const form=event.target;if(!form.id)return;event.pr
   if(!hwSum(actual))throw Error('Indique au moins un devoir terminé');
   const result=await call('/run/finish','POST',{taskId:b.id,day:b.day,actual});
   closeModal();await refresh(true);homeworkDraft.manualEstimate=false;
-  if(result.status==='pending_parent')toast('Bloc terminé · en attente de validation');
+  if(result.status==='pending_parent'){toast('🔐 Bloc terminé · demande la validation du parent.');modalApproveRun(result.runId||runFor(b.id,b.day)?.id);}
   else if(result.overrun)toast(result.penaltyPending?'⌛ Limite dépassée · pénalité à valider par le parent':'⌛ Limite dépassée · aucun gain');
   else celebration('Bloc validé · +'+result.points.xp+' XP'+(result.levelCoins?' · +'+result.levelCoins+' pièces de niveau':''));
  }

@@ -136,3 +136,33 @@ L'écran de lancement de mission a été simplifié : **l'encadré « Ton maximu
 Pour les missions à heure fixe, si le démarrage peut encore bénéficier de la ponctualité, chaque scénario affiche distinctement **les XP et les pièces de ponctualité compris dans le total** (calculés à partir de la différence avec le même scénario sans ponctualité). Si l'horaire prévu est dépassé, un message court indique **l'heure prévue et l'absence du bonus**, sans autre encadré ni plafond de gains théorique.
 
 Les prévisions sont recalculées immédiatement lorsque Mahé modifie son objectif avec +, − ou au clavier, et rafraîchies lorsque l'heure courante change de minute pendant que la fenêtre est ouverte. Les calculs de gains réels et les plafonds parentaux restent inchangés ; il s'agit d'une simplification de la présentation uniquement.
+
+
+## NEXT MOVE 4.5 — Tâches spontanées et défis de régularité
+
+### Transformer une mission en tâche spontanée
+
+Dans **Paramètres parentaux > Missions > Modifier**, sélectionner **Type de mission > Tâche spontanée**. Les champs de durée suggérée, chrono, temps limite, horaire fixe, échéance et notification disparaissent : une tâche spontanée se fait **n'importe quand**, plusieurs fois de suite ou à différents moments de la journée, **sans chrono ni bonus de rapidité**. Les jours de disponibilité et les modes (école, week-end, vacances) restent personnalisables.
+
+Le parent règle **les XP et les pièces gagnés à chaque réalisation** (suggestion initiale lors du changement de type : **8 XP + 2 pièces**, entièrement modifiable) et choisit **Autovalidation** ou **Validation parentale avec PIN**. Pour décourager une accumulation injustifiée, la validation parentale est proposée par défaut lorsqu'une mission devient spontanée. La valeur choisie est identique pour chaque réalisation : aucun seuil quotidien, ni limite de nombre, ni délai obligatoire entre deux réalisations.
+
+### Écran de Mahé
+
+Sur **Mission** et **Journée**, la zone **✨ Missions spontanées** affiche chaque tâche disponible, le nombre de fois où elle a été accomplie aujourd'hui, ses XP/pièces par réalisation et un grand bouton **✓ FAIT !**. Chaque appui enregistre **une réalisation distincte**. Aucun écran de choix de minutes ne s'ouvre.
+
+Les tâches spontanées sont séparées de la mission principale, ne bloquent pas le planning et ne sont pas signalées comme « en retard ». Si la validation parentale est activée, les points de cette réalisation restent en attente jusqu'à approbation avec le PIN. Un double clic pendant un enregistrement ne crée pas de réalisation supplémentaire.
+
+### Défis automatiques dans « 🏆 Défis »
+
+Quatre défis initiaux, **répétables à chaque nouvelle période ou série**, sont proposés :
+
+| Défi | Objectif initial | Bonus initial |
+| --- | --- | --- |
+| ⚡ Triple action | 3 réalisations dans la journée | 15 XP + 5 pièces |
+| 🎮 Dix actions | 10 réalisations dans la semaine (lundi à dimanche) | 45 XP + 15 pièces |
+| 🔥 Trois jours d'affilée | Au moins 1 réalisation par jour pendant 3 jours consécutifs | 30 XP + 10 pièces |
+| 🏆 Une semaine régulière | Au moins 1 réalisation par jour pendant 7 jours consécutifs | 100 XP + 30 pièces |
+
+Les **objectifs, XP, pièces et activation** de chaque défi sont modifiables sous **Paramètres parentaux > Réglages > Défis de fréquence et de régularité**. Un défi est validé **une seule fois par journée, semaine ou série continue**, même lorsque Mahé réalise davantage de tâches. Les missions en attente/refusées ne comptent pas ; seuls les accomplissements effectivement validés déclenchent les bonus. Les gains peuvent également débloquer des niveaux.
+
+Le bilan parental affiche les demandes de validation correspondantes, sans indiquer un chrono inexistant. L'historique de ces défis est inclus dans les sauvegardes JSON et effacé lors d'une remise à zéro des progrès, tout en conservant les réglages si le parent le souhaite.

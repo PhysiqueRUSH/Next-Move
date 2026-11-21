@@ -28,3 +28,5 @@ jobs:
         run: node tests/homework.test.cjs
       - name: Verify speed points, maximum durations, parent penalties and reset
         run: node tests/speed-and-reset.test.cjs
+      - name: Verify spontaneous missions and recurring challenges
+        run: node tests/spontaneous.test.cjs

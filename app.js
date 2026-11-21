@@ -601,36 +601,45 @@ function modeChecks(modes=['school']){return `<div class="checks">${[['school','
 function field(label,name,type='text',value='',other=''){return `<div class="field"><label for="f-${name}">${label}</label><input id="f-${name}" name="${name}" type="${type}" value="${escape(value)}" ${other}></div>`}
 function selectField(label,name,options,val){return `<div class="field"><label for="f-${name}">${label}</label><select id="f-${name}" name="${name}">${options.map(([v,l])=>`<option value="${escape(v)}" ${String(val)===String(v)?'selected':''}>${escape(l)}</option>`).join('')}</select></div>`}
 
+
 function refreshTaskEditorVisibility(){
+ const spontaneous=$('#f-missionType')?.value==='spontaneous';
+ document.querySelectorAll('.nm-ordinary-field').forEach(el=>el.style.display=spontaneous?'none':'');
  const fixed=$('#nm-fixed-field'),limit=$('#nm-limit-field');
- if(fixed)fixed.style.display=$('#f-scheduleMode')?.value==='flexible'?'none':'';
- if(limit)limit.style.display=$('#f-hasTimeLimit')?.value==='no'?'none':'';
+ if(fixed)fixed.style.display=spontaneous||$('#f-scheduleMode')?.value==='flexible'?'none':'';
+ if(limit)limit.style.display=spontaneous||$('#f-hasTimeLimit')?.value==='no'?'none':'';
+ const explanation=$('#nm-mission-type-hint');
+ if(explanation)explanation.textContent=spontaneous
+  ?'Une touche = une réalisation. Pas de chrono ni de vitesse. Mahé peut recommencer sans limite dans la journée.'
+  :'La durée et le bonus de vitesse ne concernent que les missions classiques.';
 }
 function taskModal(identifier){
- const t=data.config.tasks.find(x=>x.id===identifier)||task('', '',0,'17:20',15,[1,2,3,4,5],{enabled:true,modes:['school','weekend','vacation']});
- const caps=taskCaps(t);
+ const t=data.config.tasks.find(x=>x.id===identifier)||task('','',0,'17:20',15,[1,2,3,4,5],{enabled:true,modes:['school','weekend','vacation']});
+ const caps=taskCaps(t),spontaneous=isSpontaneous(t);
  openModal(`<h2>🎯 ${identifier?'Modifier':'Créer'} une mission</h2>
   <form id="task-form" data-id="${escape(identifier||'')}">
    ${field('Nom de la mission','title','text',t.title,'required maxlength="80"')}
+   ${selectField('Type de mission','missionType',identifier==='homework'?[['standard','Mission classique']]:[['standard','🎯 Mission classique'],['spontaneous','✨ Tâche spontanée · répétable sans limite']],spontaneous?'spontaneous':'standard')}
+   <p id="nm-mission-type-hint" class="helper">${spontaneous?'Une touche = une réalisation. Pas de chrono ni de vitesse. Mahé peut recommencer sans limite dans la journée.':'La durée et le bonus de vitesse ne concernent que les missions classiques.'}</p>
    <div class="form-grid">
     ${selectField('Catégorie','category',categoryList().map((x,i)=>[i,x]),t.category)}
-    ${selectField('Organisation','scheduleMode',[['fixed','🕒 À horaire fixe'],['flexible','⚡ N’importe quand dans la journée']],scheduleMode(t))}
-    <div id="nm-fixed-field" style="${scheduleMode(t)==='fixed'?'':'display:none'}">${field('Heure du rappel','time','time',t.time,'required')}</div>
-    ${field('Durée suggérée (min)','minutes','number',t.minutes,'min="1" max="480" required')}
-    ${selectField('Limite de temps','hasTimeLimit',[['yes','⏳ Avec limite'],['no','♾️ Sans limite']],taskHasLimit(t)?'yes':'no')}
-    <div id="nm-limit-field" style="${taskHasLimit(t)?'':'display:none'}">${field('Limite de temps (min)','maxMinutes','number',taskMaximum(t),'min="1" max="240" required')}</div>
-    ${field('XP MAXIMUM gagnables','xpMax','number',caps.xp,'min="0" max="500" required')}
-    ${field('Pièces MAXIMUM gagnables','coinsMax','number',caps.coins,'min="0" max="500" required')}
-    ${field('Échéance facultative','deadline','time',t.deadline||'')}
-    ${selectField('Priorité','priority',[[1,'1 · Obligatoire'],[2,'2 · Important'],[3,'3 · Flexible']],t.priority)}
-    ${selectField('Validation (parent obligatoire si chrono limité)','validation',[['self','Autovalidation'],['parent','Approbation parentale']],taskHasLimit(t)?'parent':t.validation)}
-    ${selectField('Si non terminée','carry',[['expire','Expire'],['carry','Reporter'],['keep','Conserver']],t.carry)}
+    <div class="nm-ordinary-field" style="${spontaneous?'display:none':''}">${selectField('Organisation','scheduleMode',[['fixed','🕒 À heure fixe'],['flexible','⚡ Quand je veux']],scheduleMode(t))}</div>
+    <div id="nm-fixed-field" style="${spontaneous||scheduleMode(t)==='flexible'?'display:none':''}">${field('Heure du rappel','time','time',t.time,'required')}</div>
+    <div class="nm-ordinary-field" style="${spontaneous?'display:none':''}">${field('Durée suggérée (min)','minutes','number',t.minutes,'min="1" max="480" required')}</div>
+    <div class="nm-ordinary-field" style="${spontaneous?'display:none':''}">${selectField('Limite de temps','hasTimeLimit',[['yes','⏳ Avec limite'],['no','♾️ Sans limite']],taskHasLimit(t)?'yes':'no')}</div>
+    <div id="nm-limit-field" style="${spontaneous||!taskHasLimit(t)?'display:none':''}">${field('Limite de temps (min)','maxMinutes','number',taskMaximum(t),'min="1" max="240" required')}</div>
+    ${field('XP gagnés par réalisation (maximum pour une mission classique)','xpMax','number',caps.xp,'min="0" max="500" required')}
+    ${field('Pièces gagnées par réalisation (maximum pour une mission classique)','coinsMax','number',caps.coins,'min="0" max="500" required')}
+    <div class="nm-ordinary-field" style="${spontaneous?'display:none':''}">${field('Échéance facultative','deadline','time',t.deadline||'')}</div>
+    <div class="nm-ordinary-field" style="${spontaneous?'display:none':''}">${selectField('Priorité','priority',[[1,'1 · Obligatoire'],[2,'2 · Important'],[3,'3 · Flexible']],t.priority)}</div>
+    ${selectField('Validation','validation',[['self','Autovalidation'],['parent','Validation du parent avec PIN']],!spontaneous&&taskHasLimit(t)?'parent':t.validation)}
+    <div class="nm-ordinary-field" style="${spontaneous?'display:none':''}">${selectField('Si non terminée','carry',[['expire','Expire'],['carry','Reporter'],['keep','Conserver']],t.carry)}</div>
    </div>
-   <p class="helper">Le plafond XP / pièces n'est pas une récompense fixe : les gains augmentent progressivement si la mission est réalisée plus vite. Les horaires libres n'ont pas de retard au démarrage. <b>Toute mission avec une limite de temps nécessite automatiquement la validation du parent avec son code PIN.</b></p>
    <div class="field"><label>Jours actifs</label>${dayChecks(t.days||[])}</div>
    <div class="field"><label>Types de journée</label>${modeChecks(t.modes||[])}</div>
    <div class="field"><label>Étapes (une par ligne)</label><textarea name="steps">${escape((t.steps||[]).join('\n'))}</textarea></div>
-   <div class="checks"><label class="check"><input type="checkbox" name="enabled" ${t.enabled?'checked':''}>Active</label><label class="check"><input type="checkbox" name="notify" ${t.notify?'checked':''}>Notification-défi (seulement à heure fixe)</label></div>
+   <div class="checks"><label class="check"><input type="checkbox" name="enabled" ${t.enabled?'checked':''}>Active</label>
+    <label class="check nm-ordinary-field" style="${spontaneous?'display:none':''}"><input type="checkbox" name="notify" ${t.notify?'checked':''}>Notification-défi (à heure fixe)</label></div>
    <div class="form-actions"><button type="button" class="btn" data-action="close-modal">Annuler</button><button type="submit" class="btn primary">Enregistrer</button></div>
   </form>
   ${identifier?`<div class="divider"></div><button class="btn mini danger" data-action="delete-task" data-id="${escape(identifier)}">Supprimer cette mission</button>`:''}`);
@@ -1230,17 +1239,21 @@ async function onForm(event){const form=event.target;if(!form.id)return;event.pr
  else if(form.id==='task-form'){
   if(role!=='parent'||!pinUnlocked)throw Error('Accès parent requis');
   const c=cloneConfig(),identifier=form.dataset.id||rand(),old=c.tasks.find(x=>x.id===identifier)||{};
-  const minutesValue=Number(get('minutes')),max=Number(get('maxMinutes')),limit=get('hasTimeLimit')==='yes',mode=get('scheduleMode');
+  const spontaneous=get('missionType')==='spontaneous';
+  if(identifier==='homework'&&spontaneous)throw Error('Les blocs de devoirs disposent de leur propre fonctionnement.');
+  const minutesValue=Number(get('minutes')),max=Number(get('maxMinutes')),limit=!spontaneous&&get('hasTimeLimit')==='yes';
+  const mode=spontaneous?'flexible':get('scheduleMode');
   const xp=Number(get('xpMax')),coins=Number(get('coinsMax'));
-  if(!['fixed','flexible'].includes(mode)||!['yes','no'].includes(get('hasTimeLimit')))throw Error('Mode invalide');
+  if(!['fixed','flexible'].includes(mode))throw Error('Type d’organisation invalide');
   if(!Number.isInteger(minutesValue)||minutesValue<1||minutesValue>480)throw Error('Durée suggérée invalide');
   if(!Number.isInteger(max)||max<1||max>240||limit&&minutesValue>max)throw Error('Vérifie la limite de temps');
-  if(![xp,coins].every(n=>Number.isInteger(n)&&n>=0&&n<=500))throw Error('Plafonds de gains invalides');
+  if(![xp,coins].every(n=>Number.isInteger(n)&&n>=0&&n<=500))throw Error('Gains XP / pièces invalides');
   const t={...old,id:identifier,title:get('title'),category:Number(get('category')),
-   time:get('time'),minutes:minutesValue,maxMinutes:max,hasTimeLimit:limit,scheduleMode:mode,locked:mode==='fixed',
-   xpMax:xp,coinsMax:coins,priority:Number(get('priority')),validation:limit?'parent':get('validation'),carry:get('carry'),
+   time:get('time'),minutes:minutesValue,maxMinutes:max,hasTimeLimit:limit,spontaneous,scheduleMode:mode,locked:mode==='fixed',
+   xpMax:xp,coinsMax:coins,priority:Number(get('priority')),validation:spontaneous?get('validation'):(limit?'parent':get('validation')),
+   carry:spontaneous?'expire':get('carry'),
    days:f.getAll('days').map(Number),modes:f.getAll('modes'),steps:get('steps').split('\n').map(x=>x.trim()).filter(Boolean),
-   enabled:f.has('enabled'),notify:f.has('notify')&&mode==='fixed',deadline:get('deadline')};
+   enabled:f.has('enabled'),notify:!spontaneous&&f.has('notify')&&mode==='fixed',deadline:spontaneous?'':get('deadline')};
   if(!t.title||!t.days.length||!t.modes.length)throw Error('Nom, jours et périodes obligatoires');
   c.tasks=c.tasks.filter(x=>x.id!==identifier);c.tasks.push(t);closeModal();await updateConfig(c);
  }
@@ -1263,7 +1276,13 @@ async function bootstrap(){
  });
  document.addEventListener('submit',onForm);
  document.addEventListener('input',e=>{if(e.target.id==='goal-minutes')refreshGoalPreview();if(e.target.id==='hw-duration')updateHomeworkPreview();});
- document.addEventListener('change',async e=>{if(['f-scheduleMode','f-hasTimeLimit'].includes(e.target.id))refreshTaskEditorVisibility();if(e.target.id==='backup-import')await restoreBackup(e.target.files?.[0]);if(e.target.id==='hw-duration'){const x=Number(e.target.value);if(Number.isInteger(x)&&x>=1&&x<=480){homeworkDraft.estimate=x;homeworkDraft.manualEstimate=true;render();}}});
+ document.addEventListener('change',async e=>{if(['f-scheduleMode','f-hasTimeLimit','f-missionType'].includes(e.target.id)){
+  if(e.target.id==='f-missionType'&&e.target.value==='spontaneous'){
+   const xp=$('#f-xpMax'),coins=$('#f-coinsMax');
+   if(xp)xp.value=8;if(coins)coins.value=2;
+  }
+  refreshTaskEditorVisibility();
+ }if(e.target.id==='backup-import')await restoreBackup(e.target.files?.[0]);if(e.target.id==='hw-duration'){const x=Number(e.target.value);if(Number.isInteger(x)&&x>=1&&x<=480){homeworkDraft.estimate=x;homeworkDraft.manualEstimate=true;render();}}});
  setInterval(clockTick,1000);
  setInterval(checkLocalChallenges,15000);
  setInterval(async()=>{if(connected&&navigator.onLine&&initDone&&data.paired){await refresh(true);storeCache()}},30000);

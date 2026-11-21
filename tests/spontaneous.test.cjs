@@ -7,7 +7,7 @@ const pinHash=nodeCrypto.createHash('sha256').update('NEXT MOVE LOCAL PIN v1'+pi
 let source=fs.readFileSync('app.js','utf8');
 const end=/bootstrap\(\);\s*\}\)\(\);\s*$/;
 assert.match(source,end);
-source=source.replace(end,"globalThis.__t={db,task,dayNow,dayOf,modeFor,futureDate,spontaneousCount,spontaneousStreakInfo,spontaneousWeekStart,spontaneousAwardsFor,spontaneousTasksFor,spontaneousCompleted,renderSpontaneousPanel,renderChallenges,renderToday,renderAdminSettings,tasksFor,demoCall,resetState,setData:()=>{data={...db}},currentDb:()=>db};\n})();");
+source=source.replace(end,"globalThis.__t={db,task,dayNow,dayOf,modeFor,futureDate,spontaneousCount,spontaneousStreakInfo,spontaneousWeekStart,spontaneousAwardsFor,spontaneousTasksFor,spontaneousCompleted,renderSpontaneousPanel,renderChallenges,renderToday,renderPlanning,renderChild,renderAdminSettings,tasksFor,demoCall,resetState,setData:()=>{data={...db}},currentDb:()=>db};\n})();");
 const storage=new Map([['nextmove_parent_pin_v1',pinHash]]);
 const localStorage={getItem:key=>storage.get(key)??null,setItem:(key,v)=>storage.set(key,String(v)),
  removeItem:key=>storage.delete(key),key:i=>[...storage.keys()][i]??null,get length(){return storage.size}};
@@ -28,6 +28,10 @@ async function main(){
  assert.match(t.renderSpontaneousPanel(today),/Sans chrono/);
  assert.match(t.renderSpontaneousPanel(today),/FAIT/);
  assert.match(t.renderToday(),/Missions spontanées/);
+ assert.match(t.renderPlanning(),/🎯 Missions/);
+ assert.match(t.renderChild(),/🎯 Missions/,'The child home is now the agenda, not the old mission hero');
+ assert.match(t.renderPlanning(),/Missions spontanées/,'Spontaneous missions remain in the unified tab');
+ assert.doesNotMatch(t.renderPlanning(),/TA PROCHAINE MISSION/);
  assert.match(t.renderChallenges(),/Triple action/);
 
  const results=[];
@@ -79,6 +83,8 @@ async function main(){
  t.setData();
  assert.equal(t.spontaneousCount(today),completedBefore,'Pending work does not count for challenge');
  assert.match(t.renderSpontaneousPanel(today),/2 à valider/);
+ assert.match(t.renderSpontaneousPanel(today),/Faire valider \(2\)/);
+ assert.match(t.renderSpontaneousPanel(today),/open-run-approval/);
  await assert.rejects(t.demoCall('/run/approve','POST',{id:a.runId,approve:true}),/Code PIN/i);
  const ok=await t.demoCall('/run/approve','POST',{id:a.runId,approve:true,pin});
  assert.equal(ok.status,'complete');t.setData();

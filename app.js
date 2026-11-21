@@ -17,7 +17,13 @@ const CATEGORY=['🌅 Routine du matin','🎒 Cartable','📚 Devoirs','🧺 Ran
 const categoryList=()=>(data?.config?.categories?.length?data.config.categories:CATEGORY);
 const SUBJECTS=['Maths','Français','Histoire-Géo','Anglais','SVT','Physique-Chimie','Technologie','Espagnol','Autre'];
 const WEEK=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
-const task=(id,title,category,time,minutes,days=[1,2,3,4,5],options={})=>({id,title,category,time,minutes,maxMinutes:Math.min(240,minutes+Math.max(5,Math.ceil(minutes*.5))),hasTimeLimit:true,scheduleMode:'fixed',xpMax:45,coinsMax:15,days,modes:['school'],validation:'self',priority:2,carry:'expire',notify:true,enabled:true,locked:false,steps:[],...options});
+const SPONTANEOUS_DEFAULTS=[
+ {id:'day3',label:'Triple action',icon:'⚡',period:'day',target:3,xp:15,coins:5},
+ {id:'week10',label:'Dix actions',icon:'🎮',period:'week',target:10,xp:45,coins:15},
+ {id:'streak3',label:'Trois jours d’affilée',icon:'🔥',period:'streak',target:3,xp:30,coins:10},
+ {id:'streak7',label:'Une semaine régulière',icon:'🏆',period:'streak',target:7,xp:100,coins:30}
+];
+const task=(id,title,category,time,minutes,days=[1,2,3,4,5],options={})=>({id,title,category,time,minutes,maxMinutes:Math.min(240,minutes+Math.max(5,Math.ceil(minutes*.5))),hasTimeLimit:true,scheduleMode:'fixed',spontaneous:false,xpMax:45,coinsMax:15,days,modes:['school'],validation:'self',priority:2,carry:'expire',notify:true,enabled:true,locked:false,steps:[],...options});
 function defaultConfig(enable=false){return {
  version:1,childName:'Mahé',categories:[...CATEGORY],avatar:'🚀',frame:'neon',title:'Recrue',xpName:'XP',parentPinHint:'',pronoteUrl:cfg.pronoteUrl||'',
  tasks:[
@@ -50,6 +56,7 @@ const demoKey='nextmove_demo_v1'; // Conserver cette clé pour préserver les pr
 let db=JSON.parse(localStorage.getItem(demoKey)||'null')||{config:defaultConfig(true),runs:[],ledger:[],wallet:{xp:0,coins:0},requests:[],homework:[],plans:[],role:'child'};
 db.homeworkDates=Array.isArray(db.homeworkDates)?db.homeworkDates:[];
 db.homeworkBlocks=Array.isArray(db.homeworkBlocks)?db.homeworkBlocks:[];
+db.spontaneousAwards=Array.isArray(db.spontaneousAwards)?db.spontaneousAwards:[];
 db.wallet=db.wallet||{xp:0,coins:0};
 if(!Number.isFinite(db.wallet.xpBank))db.wallet.xpBank=Math.max(0,Number(db.wallet.xp)||0);
 db.exchanges=Array.isArray(db.exchanges)?db.exchanges:[];
@@ -78,8 +85,9 @@ function levelInfo(xp){let n=1;while(xp>=n*n*100)n++;const lo=(n-1)**2*100,hi=n*
 const clamp=(v,min,max)=>Math.min(max,Math.max(min,v));
 const validTime=v=>Number.isFinite(Number(v))&&Number(v)>=1;
 
-const scheduleMode=t=>t?.scheduleMode==='flexible'||(t?.id==='homework'&&!t?.scheduleMode)?'flexible':'fixed';
-const taskHasLimit=t=>!!t&&!t.homeworkBlock&&t.hasTimeLimit!==false;
+const isSpontaneous=t=>t?.spontaneous===true;
+const scheduleMode=t=>isSpontaneous(t)||t?.scheduleMode==='flexible'||(t?.id==='homework'&&!t?.scheduleMode)?'flexible':'fixed';
+const taskHasLimit=t=>!!t&&!isSpontaneous(t)&&!t.homeworkBlock&&t.hasTimeLimit!==false;
 function taskMaximum(t){const def=validTime(t?.minutes)?Number(t.minutes):15;return Math.round(clamp(validTime(t?.maxMinutes)?Number(t.maxMinutes):def+Math.max(5,Math.ceil(def*.5)),1,240));}
 const rewardCap=(v,fallback)=>Math.round(clamp(Number.isFinite(Number(v))&&v!==null&&v!==undefined&&v!==''?Number(v):fallback,0,500));
 const taskCaps=t=>({xp:rewardCap(t?.xpMax,Math.min(150,Number(t?.xpBase??10)+Number(t?.xpSpeed??10)+Number(t?.xpInitiative??15)+5)),coins:rewardCap(t?.coinsMax,Math.min(80,Number(t?.coinsBase??5)+Number(t?.coinsSpeed??3)+Number(t?.coinsInitiative??5)+2))});
@@ -200,9 +208,9 @@ function modeFor(s){const periods=data.config.periods||[];return periods.find(x=
 function tasksFor(s){const m=modeFor(s),d=dayOf(s),ex=(data.config.exceptions||[]).filter(x=>x.day===s);
  const plan=JSON.parse((data.plans||[]).find(p=>p.day===s)?.plan_json||'{}');
  const hasHomeworkBlock=(data.homeworkBlocks||[]).some(b=>b.day===s);
- const ordinary=(data.config.tasks||[]).filter(t=>t.enabled!==false&&(t.days||[]).includes(d)&&(t.modes||[]).includes(m)&&!ex.some(x=>x.hideTaskId===t.id)&&!(t.id==='homework'&&hasHomeworkBlock)).map(t=>{const change=ex.find(x=>x.taskId===t.id),alter=change?.changes||{},time=scheduleMode(t)==='fixed'?(alter.time||t.time):(alter.time||t.time);return {...t,...alter,time,...(t.id==='homework'?{title:'Blocs de devoirs',homeworkLauncher:true}: {})}});
+ const ordinary=(data.config.tasks||[]).filter(t=>!isSpontaneous(t)&&t.enabled!==false&&(t.days||[]).includes(d)&&(t.modes||[]).includes(m)&&!ex.some(x=>x.hideTaskId===t.id)&&!(t.id==='homework'&&hasHomeworkBlock)).map(t=>{const change=ex.find(x=>x.taskId===t.id),alter=change?.changes||{},time=scheduleMode(t)==='fixed'?(alter.time||t.time):(alter.time||t.time);return {...t,...alter,time,...(t.id==='homework'?{title:'Blocs de devoirs',homeworkLauncher:true}: {})}});
  const leftovers=[];
- for(const t of (data.config.tasks||[]).filter(t=>t.enabled!==false&&['carry','keep'].includes(t.carry)&&!ordinary.some(x=>x.id===t.id))){
+ for(const t of (data.config.tasks||[]).filter(t=>!isSpontaneous(t)&&t.enabled!==false&&['carry','keep'].includes(t.carry)&&!ordinary.some(x=>x.id===t.id))){
   const limit=t.carry==='keep'?7:1;
   for(let n=1;n<=limit;n++){
    const previous=futureDate(s,-n),previousMode=modeFor(previous);

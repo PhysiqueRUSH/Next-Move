@@ -166,3 +166,14 @@ Quatre défis initiaux, **répétables à chaque nouvelle période ou série**, 
 Les **objectifs, XP, pièces et activation** de chaque défi sont modifiables sous **Paramètres parentaux > Réglages > Défis de fréquence et de régularité**. Un défi est validé **une seule fois par journée, semaine ou série continue**, même lorsque Mahé réalise davantage de tâches. Les missions en attente/refusées ne comptent pas ; seuls les accomplissements effectivement validés déclenchent les bonus. Les gains peuvent également débloquer des niveaux.
 
 Le bilan parental affiche les demandes de validation correspondantes, sans indiquer un chrono inexistant. L'historique de ces défis est inclus dans les sauvegardes JSON et effacé lors d'une remise à zéro des progrès, tout en conservant les réglages si le parent le souhaite.
+
+
+## NEXT MOVE 4.6 — Un seul onglet Missions et validation PIN immédiate
+
+L'écran de Mahé possède désormais **trois onglets** : **🎯 Missions**, **🏆 Défis** et **🎁 Cadeaux**. L'ancien onglet « Mission » (avec grande carte chrono) a été fusionné avec « Journée » : le nouvel onglet **Missions** affiche directement le **planning actuel de Journée**, distinguant les missions à heure fixe et celles à horaire libre, puis les tâches spontanées. Il garde les flèches pour parcourir les journées et le bouton vers les devoirs.
+
+Dans chaque ligne du planning, un bouton suit l'état de la mission : **▶ Commencer**, **✓ Terminé** si son chrono est actif (avec un compte à rebours visible dans la ligne), puis **🔐 PIN parent** si la mission attend une validation. La carte « mission principale » en grand n'est plus l'écran par défaut.
+
+**Dès qu'une mission soumise à approbation est déclarée terminée, la boîte de validation parentale s'ouvre automatiquement** avec le PIN à quatre chiffres, le choix « Valider / Refuser » et, le cas échéant, la proposition de malus. Pour les missions chronométrées, la durée est figée dès l'appui sur « J'ai terminé » : le parent n'a pas à se dépêcher de saisir son code. Le même comportement s'applique aux blocs de devoirs dont la validation parentale est activée et aux tâches spontanées définies avec une validation parentale. Si le parent ferme la fenêtre sans répondre, la mission reste en attente et le bouton 🔐 permet de la rouvrir depuis le planning ; les tâches spontanées disposent également de ce bouton dans leur section.
+
+Toutes les anciennes missions, planifications, récompenses et données locales sont conservées. Les validations continuent d'exiger le PIN : il ne suffit pas de cliquer sur « Terminé » pour créditer les points d'une mission soumise à validation.

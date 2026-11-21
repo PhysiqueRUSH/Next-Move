@@ -566,7 +566,7 @@ function renderAdminStats(){const last7=data.runs.filter(r=>r.day>=futureDays(-6
  const goal=total.length>=15&&early>=75;return `${adminHeading('📊 TABLEAU DE BORD','Évolution de la réactivité, de la rapidité et de la régularité.')}
  <div class="grid2"><div class="stat"><span class="small muted">Démarrages sans retard</span><strong>${early}%</strong></div><div class="stat"><span class="small muted">Retard moyen</span><strong>${avg} min</strong></div><div class="stat"><span class="small muted">Missions réussies (7 j)</span><strong>${last7.length}</strong></div><div class="stat"><span class="small muted">XP cumulés</span><strong>${data.wallet.xp}</strong></div></div>
  <section class="card" style="margin-top:14px"><div class="row between"><h2 style="margin:0">Progression sur 7 jours</h2><span class="pill cyan">Missions</span></div><div class="trend">${byDay.map(d=>`<div style="height:${Math.max(5,d.count/peak*100)}%"><small>${d.day}</small></div>`).join('')}</div><div style="height:12px"></div></section>
- <section class="card" style="margin-top:14px"><h2>✅ Validations en attente (${approved.length})</h2>${approved.map(r=>`<div class="mission"><span>⏱️</span><div class="info"><strong>${escape(data.config.tasks.find(t=>t.id===r.task_id)?.title||data.homework.find(h=>h.id===r.task_id)?.subject||((data.homeworkBlocks||[]).some(b=>b.id===r.task_id)?'Bloc de devoirs':'Mission'))}</strong><p>${r.day} · ${pretty(r.elapsed_s||0)} · ${r.xp} XP</p></div><button class="btn mini success" data-action="approve" data-id="${r.id}">✓</button><button class="btn mini danger" data-action="reject" data-id="${r.id}">×</button></div>`).join('')||'<p class="small muted">Aucune mission en attente.</p>'}
+ <section class="card" style="margin-top:14px"><h2>✅ Validations en attente (${approved.length})</h2>${approved.map(r=>`<div class="mission"><span>⏱️</span><div class="info"><strong>${escape(data.config.tasks.find(t=>t.id===r.task_id)?.title||data.homework.find(h=>h.id===r.task_id)?.subject||((data.homeworkBlocks||[]).some(b=>b.id===r.task_id)?'Bloc de devoirs':'Mission'))}</strong><p>${r.day} · ${r.spontaneous?'✨ Sans chrono':pretty(r.elapsed_s||0)} · ${r.xp} XP</p></div><button class="btn mini success" data-action="approve" data-id="${r.id}">✓</button><button class="btn mini danger" data-action="reject" data-id="${r.id}">×</button></div>`).join('')||'<p class="small muted">Aucune mission en attente.</p>'}
 
  <div class="divider"></div><h2>⌛ Dépassements à examiner (${penalties.length})</h2>
  ${penalties.map(r=>`<div class="mission"><span>⌛</span><div class="info"><strong>${escape(data.config.tasks.find(t=>t.id===r.task_id)?.title||((data.homeworkBlocks||[]).some(b=>b.id===r.task_id)?'Bloc de devoirs':'Mission'))}</strong><p>${r.day} · ${pretty(r.elapsed_s||0)} · limite ${r.max_minutes} min</p><p>Proposition : −${r.penaltyProposal?.xp||0} XP / −${r.penaltyProposal?.coins||0} 🪙</p></div><button class="btn mini danger" data-action="penalty-approve" data-id="${r.id}">Appliquer</button><button class="btn mini" data-action="penalty-waive" data-id="${r.id}">Annuler</button></div>`).join('')||'<p class="small muted">Aucun dépassement à examiner.</p>'}
@@ -590,6 +590,23 @@ function renderAdminSettings(){const rules=hwRules();return `${adminHeading('⚙
  <section class="card" style="margin-top:14px"><h2>📱 Données sur cet appareil</h2><p class="small muted">Les missions, XP, récompenses et historiques restent sur ce Samsung. Exporter une sauvegarde est indispensable avant de changer de téléphone ou d'effacer les données de Chrome. Le PIN est une protection d'interface, pas un coffre-fort inviolable.</p><div id="pair-code"></div></section>
  <section class="card" style="margin-top:14px"><h2>Configuration générale</h2><div class="field"><label>Prénom</label><input id="child-name" value="${escape(data.config.childName||'Mahé')}" maxlength="30"></div><div class="field"><label>URL PRONOTE (facultatif)</label><input id="pronote-url" value="${escape(data.config.pronoteUrl||'')}" placeholder="https://..."></div><div class="field"><label>Niveau d’autonomie</label><select id="rank-mode"><option value="1" ${data.config.rankMode===1?'selected':''}>Guidé</option><option value="2" ${data.config.rankMode===2?'selected':''}>Semi-autonome</option><option value="3" ${data.config.rankMode===3?'selected':''}>Autonome</option></select></div><button class="btn primary" data-action="save-settings">Enregistrer</button></section>
 
+
+ <details class="card nm-spontaneous-settings" style="margin-top:14px">
+  <summary style="font-weight:850;cursor:pointer">✨ Défis de fréquence et de régularité</summary>
+  <p class="small muted">Règle les objectifs et les bonus. Ils sont versés automatiquement après des réalisations validées, une seule fois par défi et par période.</p>
+  <form id="spontaneous-challenges-form">
+   ${spontaneousRules().map(g=>`<div class="nm-sp-parent-rule">
+    <strong>${escape(g.icon)} ${escape(g.label)}</strong>
+    <div class="form-grid">
+     ${field('Objectif ('+(g.period==='streak'?'jours':'réalisations')+')','sp-target-'+g.id,'number',g.target,'min="1" max="100" required')}
+     ${field('Bonus XP','sp-xp-'+g.id,'number',g.xp,'min="0" max="500" required')}
+     ${field('Bonus pièces','sp-coins-'+g.id,'number',g.coins,'min="0" max="200" required')}
+    </div>
+    <label class="check"><input name="sp-enable-${g.id}" type="checkbox" ${g.enabled!==false?'checked':''}> Défi activé</label>
+   </div>`).join('')}
+   <button class="btn primary block" type="submit">Enregistrer les défis spontanés</button>
+  </form>
+ </details>
  <section class="card" style="margin-top:14px"><h2>📚 Gains maximum par devoir</h2>
  <form id="homework-caps">
   <div class="form-grid">
@@ -1089,16 +1106,16 @@ function modalApproveRun(id){
  const r=(data.runs||[]).find(x=>x.id===id&&x.status==='pending_parent');
  if(!r)return toast('Cette validation est déjà terminée.');
  const t=tasksFor(r.day).find(x=>x.id===r.task_id);
- const title=escape(t?.title||(data.homeworkBlocks||[]).find(x=>x.id===r.task_id)?.title||'Mission');
+ const title=escape(t?.title||data.config.tasks.find(x=>x.id===r.task_id)?.title||(data.homeworkBlocks||[]).find(x=>x.id===r.task_id)?.title||'Mission');
  const penalty=r.penaltyDecision==='pending'?r.penaltyProposal:null;
  openModal(`<div class="nm-approve-header"><span>🔐</span><h2>Validation parentale</h2></div>
   <p class="nm-approve-title">${title}</p>
-  <div class="nm-result-summary"><span>⏱️ Chrono arrêté à <strong>${pretty(Number(r.elapsed_s)||0)}</strong></span><span>⚡ ${Number(r.xp)||0} XP · 🪙 ${Number(r.coins)||0} pièce(s) en attente</span></div>
+  <div class="nm-result-summary">${r.spontaneous?'<span>✨ Tâche spontanée · sans chrono</span>':`<span>⏱️ Chrono arrêté à <strong>${pretty(Number(r.elapsed_s)||0)}</strong></span>`}<span>⚡ ${Number(r.xp)||0} XP · 🪙 ${Number(r.coins)||0} pièce(s) en attente</span></div>
   ${r.overrun?'<p class="nm-penalty-warning">Limite dépassée : cette mission ne rapporte aucun point.</p>':''}
   ${penalty?`<label class="nm-penalty-choice"><input type="checkbox" id="nm-apply-penalty" checked> Appliquer le malus proposé : −${Number(penalty.xp)||0} XP disponibles et −${Number(penalty.coins)||0} pièces</label>`:''}
   <div class="field"><label for="nm-approval-pin">Code PIN parent (4 chiffres)</label><input id="nm-approval-pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" autocomplete="off" placeholder="••••" aria-label="Code PIN parent"></div>
   <div class="nm-approval-actions"><button class="btn danger" data-action="reject-run-pin" data-id="${escape(id)}">Refuser</button><button class="btn success" data-action="approve-run-pin" data-id="${escape(id)}">✓ Valider</button></div>
-  <p class="small muted">Le chrono est définitivement arrêté depuis que Mahé a déclaré la fin. Aucune minute supplémentaire n'est comptée pendant cette attente.</p>`);
+  <p class="small muted">${r.spontaneous?'Vérifie simplement que Mahé a bien réalisé cette action. Aucun chrono n’a été lancé.':'Le chrono est arrêté depuis que Mahé a déclaré la fin. Aucune minute supplémentaire n’est comptée.'}</p>`);
 }
 async function resolveRun(id,approve){
  modalApproveRun(id);
@@ -1254,6 +1271,18 @@ async function onForm(event){const form=event.target;if(!form.id)return;event.pr
   else celebration('Bloc validé · +'+result.points.xp+' XP'+(result.levelCoins?' · +'+result.levelCoins+' pièces de niveau':''));
  }
  else if(form.id==='category-form'){const c=cloneConfig(),name=get('categoryName');if(!name)throw Error('Nom manquant');if(!Array.isArray(c.categories))c.categories=[...CATEGORY];const idx=form.dataset.id;if(idx===''){if(c.categories.length>=20)throw Error('Maximum 20 catégories');c.categories.push(name)}else c.categories[Number(idx)]=name;closeModal();await updateConfig(c)}
+ else if(form.id==='spontaneous-challenges-form'){
+  if(role!=='parent'||!pinUnlocked)throw Error('Accès parent requis');
+  const c=cloneConfig();const challenges=[];
+  for(const rule of SPONTANEOUS_DEFAULTS){
+   const target=Number(get('sp-target-'+rule.id)),xp=Number(get('sp-xp-'+rule.id)),coins=Number(get('sp-coins-'+rule.id));
+   if(!Number.isInteger(target)||target<1||target>100||
+      !Number.isInteger(xp)||xp<0||xp>500||
+      !Number.isInteger(coins)||coins<0||coins>200)throw Error('Valeurs de défi invalides');
+   challenges.push({id:rule.id,target,xp,coins,enabled:f.has('sp-enable-'+rule.id)});
+  }
+  c.spontaneousChallenges=challenges;await updateConfig(c);
+ }
  else if(form.id==='task-form'){
   if(role!=='parent'||!pinUnlocked)throw Error('Accès parent requis');
   const c=cloneConfig(),identifier=form.dataset.id||rand(),old=c.tasks.find(x=>x.id===identifier)||{};

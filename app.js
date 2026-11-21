@@ -477,20 +477,34 @@ function renderToday(){
  ${renderSpontaneousPanel(activeDay)}
  <div class="nm-bottom-nav"><button data-action="tab" data-id="planning">📅 Voir toute ma journée <span>→</span></button><button data-action="show-homework">📚 Mes devoirs <span>→</span></button></div>`;
 }
+
 function renderMissionList(list,day){
- const someoneRunning=list.some(t=>runFor(t.id,day)?.status==='running');
+ const today=day===dayNow(),someoneRunning=tasksFor(day).some(t=>runFor(t.id,day)?.status==='running');
  return `<div class="nm-simple-list">${list.length?list.map(t=>{
   const r=runFor(t.id,day),status=r?.status||'todo';
   const done=['complete','pending_parent'].includes(status);
   const label=status==='complete'?'✅':status==='pending_parent'?'⏳':status==='running'?'⏱️':status==='rejected'?'↻':'';
-  const canStart=day===dayNow()&&!r&&!someoneRunning;
-  return `<div class="mission ${done?'completed':''}"><span class="time">${scheduleMode(t)==='fixed'?escape(t.time):'⚡'}</span><div class="info"><strong>${escape(t.title)}</strong><p>${scheduleMode(t)==='fixed'?'Heure fixe':'À faire quand tu veux'} · ${taskHasLimit(t)?'Limite '+taskMaximum(t)+' min':'Sans limite'}${status==='running'?' · En cours':status==='pending_parent'?' · À valider':status==='complete'?' · Terminé':t.carriedFrom?' · À rattraper':''}</p></div>${canStart?`<button class="btn mini primary nm-list-action" data-action="start" data-id="${escape(t.id)}">▶</button>`:`<span class="state">${label||'○'}</span>`}</div>`;
- }).join(''):'<div class="empty">Aucun défi ce jour-là.</div>'}</div>`;
+  const canStart=today&&!r&&!someoneRunning;
+  const fixed=scheduleMode(t)==='fixed';
+  const timeLabel=fixed?escape(t.time):'⚡';
+  const statusLine=status==='running'?' · ⏱️ En cours':status==='pending_parent'?' · 🔐 À valider':status==='complete'?' · Terminé':t.carriedFrom?' · À rattraper':'';
+  const remaining=status==='running'?(Number(r.goal_minutes)||Number(t.minutes)||1)*60-Math.floor((Date.now()-Number(r.started_at||Date.now()))/1000):0;
+  let button=`<span class="state">${label||'○'}</span>`;
+  if(canStart)button=`<button class="btn mini primary nm-list-action" data-action="start" data-id="${escape(t.id)}">▶ Commencer</button>`;
+  if(status==='running')button=`<button class="btn mini success nm-list-action" data-action="finish" data-id="${escape(t.id)}">✓ Terminé</button>`;
+  if(status==='pending_parent')button=`<button class="btn mini primary nm-list-action" data-action="open-run-approval" data-id="${escape(r.id)}">🔐 PIN parent</button>`;
+  return `<div class="mission nm-agenda-row ${done?'completed':''} ${status==='running'?'nm-agenda-running':''}">
+   <span class="time">${timeLabel}</span>
+   <div class="info"><strong>${escape(t.title)}</strong>
+    <p>${fixed?'À heure fixe':'Quand je veux'} · ${taskHasLimit(t)?'Limite '+taskMaximum(t)+' min':'Sans limite'}${statusLine}</p>
+    ${status==='running'?`<div class="nm-inline-clock" data-inline-timer="${escape(t.id)}">${remaining<0?'+':''}${pretty(remaining)}</div>`:''}
+   </div>${button}
+  </div>`;
+ }).join(''):'<div class="empty">Aucune mission classique.</div>'}</div>`;
 }
-
 function renderPlanning(){
  const list=tasksFor(activeDay),fixed=list.filter(t=>scheduleMode(t)==='fixed'),flex=list.filter(t=>scheduleMode(t)==='flexible');
- return `<h1 class="nm-page-title">📅 Ma journée</h1>
+ return `<h1 class="nm-page-title">🎯 Missions</h1>
  <div class="nm-day-picker"><button class="btn mini" data-action="day-prev" aria-label="Jour précédent">‹</button><strong>${escape(dateLabel(activeDay))}</strong><button class="btn mini" data-action="day-next" aria-label="Jour suivant">›</button></div>
  ${fixed.length?`<h2 class="nm-planner-section">🕒 À heure fixe</h2>${renderMissionList(fixed,activeDay)}`:''}
  ${flex.length?`<h2 class="nm-planner-section">⚡ Quand je veux</h2>${renderMissionList(flex,activeDay)}`:''}
@@ -1188,7 +1202,7 @@ async function restoreBackup(file){
   if(!d||!d.config||!Array.isArray(d.config.tasks)||!Array.isArray(d.config.rewards)||!Array.isArray(d.runs)||!Array.isArray(d.requests)||!d.wallet||!Array.isArray(d.homework)||!Array.isArray(d.plans))throw Error('Fichier NEXT MOVE non reconnu');
   if(!confirm('Restaurer cette sauvegarde remplacera TOUTES les données actuelles de NEXT MOVE sur ce téléphone. Continuer ?'))return;
   db={config:d.config,runs:d.runs,ledger:Array.isArray(d.ledger)?d.ledger:[],wallet:{...d.wallet,xpBank:Number.isFinite(d.wallet.xpBank)?d.wallet.xpBank:Math.max(0,Number(d.wallet.xp)||0)},exchanges:Array.isArray(d.exchanges)?d.exchanges:[],requests:d.requests,homework:d.homework,plans:d.plans,homeworkDates:Array.isArray(d.homeworkDates)?d.homeworkDates:[],homeworkBlocks:Array.isArray(d.homeworkBlocks)?d.homeworkBlocks:[],spontaneousAwards:Array.isArray(d.spontaneousAwards)?d.spontaneousAwards:[],claimedLevels:Array.isArray(d.claimedLevels)?d.claimedLevels:Array.from({length:levelInfo(d.wallet.xp).n},(_,i)=>i+1),role:'child'};
-  saveDemo();data={...db};role='child';pinUnlocked=false;tab='today';render();toast('✅ Sauvegarde restaurée.');
+  saveDemo();data={...db};role='child';pinUnlocked=false;tab='planning';render();toast('✅ Sauvegarde restaurée.');
  }catch(e){toast('Import impossible : '+e.message)}
 }
 function checkLocalChallenges(){
@@ -1216,6 +1230,15 @@ function clockTick(){
   const currentMinute=dayNow()+' '+localTime();
   if(currentMinute!==goalPreviewMinuteSeen){goalPreviewMinuteSeen=currentMinute;refreshGoalPreview();}
  }
+ document.querySelectorAll('[data-inline-timer]').forEach(node=>{
+  const run=runFor(node.dataset.inlineTimer,activeDay);
+  if(!run||run.status!=='running')return;
+  const task=tasksFor(activeDay).find(t=>t.id===node.dataset.inlineTimer);
+  const goal=Math.max(1,Number(run.goal_minutes)||Number(task?.minutes)||1);
+  const remaining=goal*60-Math.floor((Date.now()-run.started_at)/1000);
+  node.textContent=(remaining<0?'+':'')+pretty(remaining);
+  node.classList.toggle('overtime',remaining<0);
+ });
  const el=$('#timer-num');if(!el)return;const taskId=el.dataset.task,t=tasksFor(activeDay).find(x=>x.id===taskId),r=runFor(taskId,activeDay);if(!t||!r||r.status!=='running')return;
  const goal=Number(r.goal_minutes)||Number(t.minutes)||1;
  const remaining=goal*60-Math.floor((Date.now()-r.started_at)/1000);el.textContent=(remaining<0?'+':'')+pretty(remaining);el.classList.toggle('overtime',remaining<0);
@@ -1341,7 +1364,7 @@ async function bootstrap(){
  setInterval(async()=>{if(connected&&navigator.onLine&&initDone&&data.paired){await refresh(true);storeCache()}},30000);
  window.addEventListener('online',async()=>{online=true;await flushOffline();await refresh(true)});
  window.addEventListener('offline',()=>{online=false;toast('Mode hors ligne : les défis restent accessibles')});
- document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&role==='parent'){role='child';pinUnlocked=false;tab='today';render();}else if(document.visibilityState==='visible'){checkLocalChallenges();}});
+ document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&role==='parent'){role='child';pinUnlocked=false;tab='planning';render();}else if(document.visibilityState==='visible'){checkLocalChallenges();}});
  // La permission notification est demandée uniquement après un clic volontaire de Mahé.
 
 }

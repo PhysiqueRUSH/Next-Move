@@ -653,6 +653,24 @@ async function demoCall(path,method,body){let result={ok:true};
  if(path==='/config'){db.config=body;}
 
 
+ else if(path==='/spontaneous/complete'){
+  const day=dayNow(),mode=modeFor(day),dow=dayOf(day);
+  const t=(db.config.tasks||[]).find(x=>x.id===body.taskId);
+  if(!t||!isSpontaneous(t)||t.enabled===false||!(t.days||[]).includes(dow)||!(t.modes||[]).includes(mode))
+   throw Error('Cette mission spontanée n’est pas disponible aujourd’hui.');
+  const cap=taskCaps(t),needsApproval=t.validation==='parent';
+  const r={id:'sp-'+rand(),task_id:t.id,day,spontaneous:true,
+   started_at:null,finished_at:nowMs(),elapsed_s:null,late_s:null,
+   status:needsApproval?'pending_parent':'complete',validation:needsApproval?'parent':'self',
+   xp:cap.xp,coins:cap.coins};
+  db.runs.unshift(r);
+  result.runId=r.id;result.status=r.status;result.points={xp:cap.xp,coins:cap.coins};
+  if(!needsApproval){
+   creditXp(cap.xp);db.wallet.coins+=cap.coins;
+   result.bonus=awardSpontaneousChallenges(day);
+   result.levelCoins=applyLevelRewards();
+  }
+ }
  else if(path==='/run/start'){
   let r=db.runs.find(x=>x.task_id===body.taskId&&x.day===body.day);
   if(!r){
@@ -727,6 +745,7 @@ async function demoCall(path,method,body){let result={ok:true};
   if(body.approve){
    creditXp(r.xp);db.wallet.coins+=r.coins;
    if(r.homeworkActual)hwApplyCompleted(r);
+   if(r.spontaneous)result.bonus=awardSpontaneousChallenges(r.day);
    result.levelCoins=applyLevelRewards();
   }
   if(r.penaltyDecision==='pending'){

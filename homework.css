@@ -52,3 +52,16 @@ button.hw-count-num{cursor:pointer}
 }
 
 .hw-urgent{border:1px solid #8a6338;background:#392b25;color:#ffdf9c;font-size:12px;font-weight:800;text-align:center;border-radius:11px;padding:11px;margin:8px 0}
+
+/* Gains de devoirs : quatre scénarios proportionnels et lisibles sur téléphone */
+.hw-speed-list{display:flex;flex-direction:column;gap:9px;margin:13px 0 18px}
+.hw-speed-row{display:grid;grid-template-columns:minmax(76px,92px) minmax(38px,1fr) auto;align-items:center;gap:11px;border:1px solid #36516d;border-radius:13px;background:#182a42;padding:12px 11px;min-height:63px}
+.hw-speed-row:nth-child(1){border-color:#47768a}
+.hw-speed-row:nth-child(4){border-color:#3a9c9b;background:#173c48}
+.hw-speed-time{font-size:13px;font-weight:850;color:#edfaff;white-space:nowrap;font-variant-numeric:tabular-nums}
+.hw-speed-track{height:9px;border-radius:999px;background:#0a1a2d;overflow:hidden;border:1px solid #2c405d}
+.hw-speed-track span{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#1c9bc0,#66f9d5);transition:width .15s ease}
+.hw-speed-gain{display:flex;align-items:flex-end;flex-direction:column;gap:3px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.hw-speed-gain strong{color:#79fbdf;font-size:15px;font-weight:900}
+.hw-speed-gain span{color:#ffe1a2;font-size:13px;font-weight:800}
+@media(max-width:390px){.hw-speed-row{grid-template-columns:78px minmax(20px,1fr) auto;gap:7px;padding:11px 8px}.hw-speed-gain strong{font-size:13px}.hw-speed-gain span{font-size:12px}.hw-speed-time{font-size:12px}}

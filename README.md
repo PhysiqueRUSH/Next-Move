@@ -177,3 +177,17 @@ Dans chaque ligne du planning, un bouton suit l'état de la mission : **▶ Comm
 **Dès qu'une mission soumise à approbation est déclarée terminée, la boîte de validation parentale s'ouvre automatiquement** avec le PIN à quatre chiffres, le choix « Valider / Refuser » et, le cas échéant, la proposition de malus. Pour les missions chronométrées, la durée est figée dès l'appui sur « J'ai terminé » : le parent n'a pas à se dépêcher de saisir son code. Le même comportement s'applique aux blocs de devoirs dont la validation parentale est activée et aux tâches spontanées définies avec une validation parentale. Si le parent ferme la fenêtre sans répondre, la mission reste en attente et le bouton 🔐 permet de la rouvrir depuis le planning ; les tâches spontanées disposent également de ce bouton dans leur section.
 
 Toutes les anciennes missions, planifications, récompenses et données locales sont conservées. Les validations continuent d'exiger le PIN : il ne suffit pas de cliquer sur « Terminé » pour créditer les points d'une mission soumise à validation.
+
+
+## NEXT MOVE 4.7 — Gains des blocs de devoirs, progressifs selon le chrono
+
+Pour les blocs de devoirs, les gains s'appuient sur le volume réellement terminé, les jours d'avance de chaque devoir (0 à 14 jours, proportionnellement), et désormais **la proportion de temps gagnée par rapport à l'objectif choisi par Mahé**.
+
+- Bonus de vitesse = **35 % du plafond par devoir × fraction du temps économisé** : 0 % de temps gagné à la durée estimée, 25 % de temps gagné en terminant en 75 % de cette durée, 50 % en terminant en moitié du temps, etc. La croissance est continue avant l'arrondi final des XP et des pièces.
+- Bonus objectif = **10 %** du plafond par devoir si la durée réelle est inférieure ou égale à l'objectif choisi. Après cet objectif, les devoirs réellement terminés restent récompensés (base + anticipation + volume), mais **les bonus objectif et vitesse deviennent nuls**.
+- Autres composantes : **30 % base**, jusqu'à **18 % avance**, jusqu'à **7 % volume**. Le total est toujours plafonné aux XP et aux pièces définis par le parent pour chaque devoir terminé.
+- Aucun seuil maximal parental de durée n'est réintroduit pour les blocs.
+
+L'écran de préparation n'utilise plus les paragraphes « maximum possible » et « plafond parental » : il présente **quatre rangées compactes** (100 %, 75 %, 50 %, 25 % de l'objectif choisi), chacune avec le **temps**, une **barre de gain**, les **XP** et les **pièces**. Modifier la durée avec les boutons +/- ou le clavier recalcule toutes les prévisions en direct ; changer les devoirs sélectionnés les recalcule également.
+
+La durée choisie est verrouillée au lancement du bloc ; la récompense réelle est calculée à la fin avec la durée réellement écoulée et le nombre de devoirs réellement terminés, avec validation parentale selon la configuration de la mission de devoirs.

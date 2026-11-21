@@ -469,6 +469,7 @@ function renderToday(){
  return `<div class="nm-topbar"><span class="nm-greeting">Salut ${name} 👋</span><div class="nm-saldo"><span>🪙 ${Number(data.wallet.coins)||0}</span><strong>Niv. ${level.n}</strong></div></div>
  <div class="nm-day-progress"><div class="nm-progress-line"><span>${today?"Aujourd’hui":escape(dateLabel(activeDay))}</span><strong>${finished} / ${all.length} missions</strong></div><div class="progress"><span style="width:${all.length?Math.round(100*finished/all.length):0}%"></span></div></div>
  ${hero}
+ ${renderSpontaneousPanel(activeDay)}
  <div class="nm-bottom-nav"><button data-action="tab" data-id="planning">📅 Voir toute ma journée <span>→</span></button><button data-action="show-homework">📚 Mes devoirs <span>→</span></button></div>`;
 }
 function renderMissionList(list,day){
@@ -488,7 +489,8 @@ function renderPlanning(){
  <div class="nm-day-picker"><button class="btn mini" data-action="day-prev" aria-label="Jour précédent">‹</button><strong>${escape(dateLabel(activeDay))}</strong><button class="btn mini" data-action="day-next" aria-label="Jour suivant">›</button></div>
  ${fixed.length?`<h2 class="nm-planner-section">🕒 À heure fixe</h2>${renderMissionList(fixed,activeDay)}`:''}
  ${flex.length?`<h2 class="nm-planner-section">⚡ Quand je veux</h2>${renderMissionList(flex,activeDay)}`:''}
- ${!list.length?'<div class="empty">Aucune mission aujourd’hui.</div>':''}
+ ${!list.length?'<div class="empty">Aucune mission classique aujourd’hui.</div>':''}
+ ${renderSpontaneousPanel(activeDay)}
  <div class="nm-quick-actions"><button class="btn primary block" data-action="show-homework">📚 Préparer un bloc de devoirs →</button></div>
  <details class="nm-planner-tools"><summary>⏱️ Je suis en retard</summary><p>Les heures fixes restent en place. Les missions libres se font quand tu veux.</p><button class="btn block" data-action="replan">Voir mes priorités</button><div id="replan-result"></div></details>`;
 }
@@ -496,6 +498,21 @@ function renderPlanning(){
 const badges=[['⚡','Démarrage éclair',()=>data.runs.some(r=>r.status==='complete'&&r.late_s===0)],['🎯','10 missions',()=>data.runs.filter(r=>r.status==='complete').length>=10],['🏆','50 missions',()=>data.runs.filter(r=>r.status==='complete').length>=50],['🚀','Niveau 5',()=>levelInfo(data.wallet.xp).n>=5],['💎','Niveau 10',()=>levelInfo(data.wallet.xp).n>=10],['⏱️','Chrono dompté',()=>data.runs.filter(r=>r.status==='complete'&&r.elapsed_s<=900).length>=5],['🧠','Autonomie',()=>data.runs.filter(r=>r.late_s===0&&r.status==='complete').length>=20],['📚','Érudit',()=>data.runs.filter(r=>r.task_id.startsWith('hw-')&&r.status==='complete').length>=5],['🔥','Persévérant',()=>data.runs.filter(r=>r.status==='complete').length>=30]];
 function renderChallenges(){const done=data.runs.filter(r=>r.status==='complete'),quick=done.filter(r=>r.elapsed_s<=(data.config.tasks.find(t=>t.id===r.task_id)?.minutes||15)*60),self=done.filter(r=>r.late_s===0);const goals=[{name:'Départ canon',desc:'Commence 3 missions sans retard',done:Math.min(self.length,3),max:3,icon:'⚡'},{name:'Sprint du champion',desc:'Termine 5 missions dans le chrono',done:Math.min(quick.length,5),max:5,icon:'⏱️'},{name:'Série gagnante',desc:'Accomplis 10 missions',done:Math.min(done.length,10),max:10,icon:'🔥'}];
  return `<div class="section-title"><h2>🏆 CENTRE DES DÉFIS</h2><span class="pill gold">${badges.filter(b=>b[2]()).length} trophées</span></div><div class="card"><h2>⚡ Défis automatiques</h2>${goals.map(g=>`<div style="margin:14px 0"><div class="row between"><strong>${g.icon} ${g.name}</strong><span class="small muted">${g.done}/${g.max}</span></div><p class="small muted" style="margin:5px 0">${g.desc}</p><div class="progress"><span style="width:${g.done/g.max*100}%"></span></div></div>`).join('')}</div>
+
+ <section class="card nm-spontaneous-challenges"><h2>✨ Défis spontanés</h2>
+  <p class="small muted">Réalise des missions spontanées plusieurs fois, ou reviens régulièrement. Les gains bonus sont versés automatiquement une seule fois par défi atteint.</p>
+  ${spontaneousAwardsFor(dayNow()).map(g=>{
+   const percent=Math.round(100*Math.min(1,g.current/(Number(g.target)||1)));
+   const period=g.period==='day'?'aujourd’hui':g.period==='week'?'cette semaine':'jours consécutifs';
+   return `<div class="nm-spontaneous-challenge">
+    <div class="nm-spontaneous-challenge-title"><strong>${escape(g.icon||'✨')} ${escape(g.label)}</strong><span>${g.claimed?'✅ GAGNÉ':Math.min(g.current,g.target)+' / '+g.target}</span></div>
+    <p>${g.target} ${g.period==='streak'?'jours de suite':g.period==='week'?'réalisations cette semaine':'réalisations aujourd’hui'} · <b>+${Number(g.xp)||0} XP · +${Number(g.coins)||0} 🪙</b></p>
+    <div class="progress"><span style="width:${percent}%"></span></div>
+   </div>`;
+  }).join('')}
+  <p class="small muted">Les missions soumises à validation parentale comptent seulement après approbation.</p>
+ </section>
+
  <section class="card" style="margin-top:12px"><h2>🎖️ Trophées à débloquer</h2><div class="badge-grid">${badges.map(([icon,name,fn])=>`<div class="trophy ${fn()?'':'locked'}"><span class="emoji">${icon}</span><strong>${name}</strong><span class="tiny muted">${fn()?'DÉBLOQUÉ':'À GAGNER'}</span></div>`).join('')}</div></section>
  <section class="card" style="margin-top:12px"><h2>🎯 Défis du parent</h2>${(data.config.customChallenges||[]).length?(data.config.customChallenges||[]).map(c=>`<div class="mission"><span>🎯</span><div class="info"><strong>${escape(c.name)}</strong><p>${escape(c.description)} · Récompense : ${Number(c.coins)||0} pièces (validation parentale)</p></div></div>`).join(''):'<p class="small muted">Aucun défi parental pour l’instant.</p>'}</section>`;
 }
@@ -544,7 +561,7 @@ function renderProfile(){
 }
 function renderAdmin(){switch(adminTab){case 'tasks':return renderAdminTasks();case 'calendar':return renderAdminCalendar();case 'rewards':return renderAdminRewards();case 'settings':return renderAdminSettings();default:return renderAdminStats();}}
 function adminHeading(title,detail=''){return `<div class="section-title"><h2>${title}</h2></div>`}
-function renderAdminStats(){const last7=data.runs.filter(r=>r.day>=futureDays(-6)&&r.status==='complete'),total=data.runs.filter(r=>r.status==='complete');const started=data.runs.filter(r=>r.started_at),prompt=started.filter(r=>r.late_s===0).length,early=started.length?Math.round(prompt/started.length*100):0;const avg=started.length?Math.round(started.reduce((a,r)=>a+(r.late_s||0),0)/started.length/60):0;const approved=data.runs.filter(r=>r.status==='pending_parent'),redeems=data.requests.filter(r=>r.status==='pending'),penalties=data.runs.filter(r=>r.penaltyDecision==='pending'&&r.status==='complete');
+function renderAdminStats(){const last7=data.runs.filter(r=>r.day>=futureDays(-6)&&r.status==='complete'),total=data.runs.filter(r=>r.status==='complete');const started=data.runs.filter(r=>r.started_at&&!r.spontaneous),prompt=started.filter(r=>r.late_s===0).length,early=started.length?Math.round(prompt/started.length*100):0;const avg=started.length?Math.round(started.reduce((a,r)=>a+(r.late_s||0),0)/started.length/60):0;const approved=data.runs.filter(r=>r.status==='pending_parent'),redeems=data.requests.filter(r=>r.status==='pending'),penalties=data.runs.filter(r=>r.penaltyDecision==='pending'&&r.status==='complete');
  const days=Array.from({length:7},(_,i)=>futureDays(i-6)),byDay=days.map(x=>({day:x.slice(8),count:total.filter(r=>r.day===x).length})),peak=Math.max(1,...byDay.map(d=>d.count));
  const goal=total.length>=15&&early>=75;return `${adminHeading('📊 TABLEAU DE BORD','Évolution de la réactivité, de la rapidité et de la régularité.')}
  <div class="grid2"><div class="stat"><span class="small muted">Démarrages sans retard</span><strong>${early}%</strong></div><div class="stat"><span class="small muted">Retard moyen</span><strong>${avg} min</strong></div><div class="stat"><span class="small muted">Missions réussies (7 j)</span><strong>${last7.length}</strong></div><div class="stat"><span class="small muted">XP cumulés</span><strong>${data.wallet.xp}</strong></div></div>
@@ -557,9 +574,9 @@ function renderAdminStats(){const last7=data.runs.filter(r=>r.day>=futureDays(-6
  <section class="card" style="margin-top:14px"><h2>🧠 Progression d’autonomie</h2><p class="small muted">Mode actuel : <b>${['','Guidé','Semi-autonome','Autonome'][data.config.rankMode||1]}</b>. Les changements sont proposés selon les résultats, mais validés par toi.</p><div class="progress"><span style="width:${early}%"></span></div><p class="small">${goal?'🏅 Mahé pourrait passer au palier suivant : ses démarrages sont réguliers.':'Objectif indicatif : au moins 15 missions réussies et 75 % de départs sans retard.'}</p><button class="btn" data-action="autonomy">Changer le palier</button></section>
  <section class="card" style="margin-top:14px"><h2>🪙 Pénalités manuelles</h2><p class="small muted">Aucune pénalité n’est automatique. Tu choisis un manquement et confirmes un petit retrait en pièces (maximum 20 par opération, solde jamais négatif).</p><button class="btn danger" data-action="penalty">Examiner une pénalité</button></section>`;
 }
-function renderAdminTasks(){const tasks=data.config.tasks||[];return `${adminHeading('🎯 ÉDITEUR DE MISSIONS','Toutes les missions sont personnalisables : horaires, périodes, priorité, durée, validation, sous-étapes et notifications.')}
+function renderAdminTasks(){const tasks=data.config.tasks||[];return `${adminHeading('🎯 ÉDITEUR DE MISSIONS','Missions classiques et spontanées, durées, jours actifs et récompenses personnalisables.')}
  <div class="row" style="margin:16px 0"><button class="btn primary" data-action="edit-task">+ Nouvelle mission</button><span class="pill cyan">${tasks.filter(t=>t.enabled).length} actives</span></div>
- <div class="mission-list">${tasks.map(t=>`<div class="mission"><span class="time">${t.enabled?'⚡':'⏸️'}<br>${scheduleMode(t)==='fixed'?t.time:'Libre'}</span><div class="info"><strong>${escape(t.title)}</strong><p>${escape(categoryList()[t.category]||'Mission')} · ${scheduleMode(t)==='fixed'?'Fixe '+t.time:'Horaire libre'} · ${taskHasLimit(t)?'Limite '+taskMaximum(t)+' min':'Sans limite'} · ${taskCaps(t).xp} XP / ${taskCaps(t).coins} pièces max</p></div><button class="btn mini" data-action="edit-task" data-id="${escape(t.id)}">✎</button><button class="btn mini" data-action="duplicate-task" data-id="${escape(t.id)}">⧉</button></div>`).join('')}</div>`}
+ <div class="mission-list">${tasks.map(t=>`<div class="mission"><span class="time">${t.enabled?'⚡':'⏸️'}<br>${scheduleMode(t)==='fixed'?t.time:'Libre'}</span><div class="info"><strong>${escape(t.title)}</strong><p>${escape(categoryList()[t.category]||'Mission')} · ${isSpontaneous(t)?'✨ Spontanée illimitée · sans chrono':(scheduleMode(t)==='fixed'?'Fixe '+t.time:'Horaire libre')+' · '+(taskHasLimit(t)?'Limite '+taskMaximum(t)+' min':'Sans limite')} · ${taskCaps(t).xp} XP / ${taskCaps(t).coins} pièces ${isSpontaneous(t)?'par fois':'max'}</p></div><button class="btn mini" data-action="edit-task" data-id="${escape(t.id)}">✎</button><button class="btn mini" data-action="duplicate-task" data-id="${escape(t.id)}">⧉</button></div>`).join('')}</div>`}
 function renderAdminCalendar(){return `${adminHeading('📅 CALENDRIER INTELLIGENT','Semaine, vacances, exceptions ponctuelles et plages de silence.')}
  <section class="card"><div class="row between"><h2 style="margin:0">Périodes personnalisées</h2><button class="btn mini primary" data-action="add-period">+ Période</button></div>${(data.config.periods||[]).map(p=>`<div class="mission"><span>📅</span><div class="info"><strong>${escape(p.name)}</strong><p>${p.start} → ${p.end} · ${escape(p.mode)}</p></div><button class="btn mini danger" data-action="del-period" data-id="${p.id}">×</button></div>`).join('')||'<p class="small muted">Mode école en semaine, week-end les autres jours. Ajoute tes vacances ou tes périodes spéciales.</p>'}</section>
  <section class="card" style="margin-top:14px"><div class="row between"><h2 style="margin:0">🔕 Plages silencieuses</h2><button class="btn mini primary" data-action="add-quiet">+ Silence</button></div>${(data.config.quiet||[]).map(q=>`<div class="mission"><span>🔕</span><div class="info"><strong>${q.start} → ${q.end}</strong><p>${(q.modes||[]).join(', ')} · ${(q.days||[]).map(x=>WEEK[x]).join(' ')}</p></div><button class="btn mini danger" data-action="del-quiet" data-id="${q.id}">×</button></div>`).join('')}</section>
@@ -1007,6 +1024,7 @@ const actions={
  'goal-plus':()=>{const input=$('#goal-minutes');if(input){input.value=Math.min(Number(input.max)||480,(Number(input.value)||1)+1);refreshGoalPreview()}},
  'finish':(_,el)=>finishTask(el.dataset.id),
  'open-run-approval':(_,el)=>modalApproveRun(el.dataset.id),
+ 'spontaneous-done':(_,el)=>completeSpontaneous(el.dataset.id),
  'approve-run-pin':(_,el)=>resolveRunWithPin(el.dataset.id,true),
  'reject-run-pin':(_,el)=>resolveRunWithPin(el.dataset.id,false),
  'toggle-sound':()=>{localStorage.setItem('nm_mute',localStorage.getItem('nm_mute')==='yes'?'no':'yes');render()},

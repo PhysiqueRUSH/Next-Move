@@ -9,7 +9,7 @@ const pinHash=nodeCrypto.createHash('sha256').update('NEXT MOVE LOCAL PIN v1'+pi
 let source=fs.readFileSync('app.js','utf8');
 const closing=/bootstrap\(\);\s*\}\)\(\);\s*$/;
 assert.match(source,closing,'Application bootstrap marker should exist');
-source=source.replace(closing, "globalThis.__test={db,dayNow,futureDate,hwReward,hwSum,hwAvailable,hwApplyCompleted,tasksFor,runFor,demoCall,setData:()=>{data={...db}}};\n})();");
+source=source.replace(closing, "globalThis.__test={db,dayNow,futureDate,hwReward,hwSpeedPreviewHtml,hwSum,hwAvailable,hwApplyCompleted,tasksFor,runFor,demoCall,setData:()=>{data={...db}}};\n})();");
 const store=new Map();
 let uid=0;
 store.set('nextmove_parent_pin_v1',pinHash);
@@ -30,6 +30,28 @@ async function test(){
  assert.ok(t.hwReward([{due,count:3}],30,40*60,today).xp>t.hwReward([{due,count:1}],30,40*60,today).xp,'Volume should earn more');
  assert.equal(t.hwReward([{due,count:2}],20,20*60,today).fast,true);
  assert.equal(t.hwReward([{due,count:2}],20,21*60,today).fast,false);
+ const examples=[20,15,10,5].map(min=>t.hwReward([{due,count:3}],20,min*60,today));
+ for(let i=1;i<examples.length;i++){
+  assert.ok(examples[i].xp>examples[i-1].xp,'XP increase for every faster effort');
+  assert.ok(examples[i].coins>examples[i-1].coins,'Coins increase progressively with greater speed');
+ }
+ assert.equal(examples[0].speed,0,'No speed bonus at the goal');
+ assert.equal(examples[1].speed,.25,'25% saved time = 25% speed factor');
+ assert.equal(examples[2].speed,.5,'50% saved time = 50% speed factor');
+ assert.equal(examples[3].speed,.75,'75% saved time = 75% speed factor');
+ assert.equal(t.hwReward([{due,count:3}],20,21*60,today).speed,0,'No speed bonus once the self-chosen goal is missed');
+ assert.equal(t.hwReward([{due,count:3}],20,21*60,today).fast,false);
+ assert.ok(examples[0].xp>t.hwReward([{due,count:3}],20,21*60,today).xp,'Finishing within estimate still earns the deadline bonus');
+ assert.ok(t.hwReward([{due,count:3}],20,10*60,today).xp<=3*30,'Parent XP cap remains effective');
+ assert.ok(t.hwReward([{due,count:3}],20,10*60,today).coins<=3*10,'Parent coin cap remains effective');
+ const preview=t.hwSpeedPreviewHtml([{due,count:3}],20);
+ assert.equal((preview.match(/class="hw-speed-row"/g)||[]).length,4,'Four reward scenarios');
+ for(const label of ['20 min','15 min','10 min','5 min'])assert.match(preview,new RegExp(label));
+ assert.doesNotMatch(preview,/maximum possible|Plafond parental|bonus de vitesse/i,'No prose in visual rewards');
+ const shorter=t.hwSpeedPreviewHtml([{due,count:3}],12);
+ for(const label of ['12 min','9 min','6 min','3 min'])assert.match(shorter,new RegExp(label),'Estimated time updates all scenarios');
+ assert.notEqual(preview,shorter,'Changing estimate changes the visual preview');
+
  assert.ok(t.hwReward([{due,count:3}],45,45*60,today).xp>3*t.hwReward([{due,count:1}],15,15*60,today).xp,'A larger block should beat three small blocks with the same work');
 
  t.db.homeworkDates.push({due,count:5});t.setData();

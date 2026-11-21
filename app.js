@@ -244,6 +244,93 @@ const getActive=(day=activeDay)=>{
  if(flexible.length)return flexible[0];
  return pending[0];
 };
+
+/* Tâches spontanées : aucun chrono, autant de réalisations que souhaité. */
+function spontaneousTasksFor(day=dayNow()){
+ const d=dayOf(day),mode=modeFor(day);
+ return (data.config.tasks||[]).filter(t=>isSpontaneous(t)&&t.enabled!==false&&(t.days||[]).includes(d)&&(t.modes||[]).includes(mode));
+}
+function spontaneousCompleted(day){
+ return (data.runs||[]).filter(r=>r.spontaneous===true&&r.status==='complete'&&(!day||r.day===day));
+}
+function spontaneousCount(day,taskId){
+ return spontaneousCompleted(day).filter(r=>!taskId||r.task_id===taskId).length;
+}
+function spontaneousPending(day,taskId){
+ return (data.runs||[]).filter(r=>r.spontaneous===true&&r.status==='pending_parent'&&r.day===day&&(!taskId||r.task_id===taskId)).length;
+}
+function spontaneousWeekStart(day){return futureDate(day,-((dayOf(day)+6)%7));}
+function spontaneousStreakInfo(day,completed=spontaneousCompleted()){
+ const days=new Set(completed.filter(r=>r.day<=day).map(r=>r.day));
+ let count=0,date=day;
+ while(days.has(date)&&count<366){count++;date=futureDate(date,-1);}
+ return {count,start:count?futureDate(day,1-count):day};
+}
+function spontaneousRules(){
+ const overrides=data.config?.spontaneousChallenges||[];
+ return SPONTANEOUS_DEFAULTS.map(rule=>{
+  const found=Array.isArray(overrides)?overrides.find(x=>x.id===rule.id):null;
+  return {...rule,...(found||{})};
+ });
+}
+function spontaneousRuleProgress(rule,day,completed=spontaneousCompleted()){
+ const week=spontaneousWeekStart(day),streak=spontaneousStreakInfo(day,completed);
+ if(rule.period==='day')return {current:completed.filter(r=>r.day===day).length,key:day};
+ if(rule.period==='week')return {current:completed.filter(r=>r.day>=week&&r.day<=day).length,key:week};
+ return {current:streak.count,key:streak.start};
+}
+function spontaneousAwardsFor(day=dayNow()){
+ return spontaneousRules().map(rule=>{
+  const progress=spontaneousRuleProgress(rule,day);
+  const key=rule.id+':'+progress.key;
+  const claimed=(data.spontaneousAwards||[]).some(a=>a.key===key);
+  return {...rule,...progress,key,claimed};
+ });
+}
+function awardSpontaneousChallenges(day){
+ const completed=db.runs.filter(r=>r.spontaneous===true&&r.status==='complete');
+ const overrides=db.config.spontaneousChallenges||[];
+ let gainedXp=0,gainedCoins=0;const awarded=[];
+ for(const base of SPONTANEOUS_DEFAULTS){
+  const rule={...base,...(Array.isArray(overrides)?overrides.find(x=>x.id===base.id)||{}:{})};
+  if(rule.enabled===false)continue;
+  const progress=spontaneousRuleProgress(rule,day,completed);
+  if(progress.current<(Number(rule.target)||1))continue;
+  const key=rule.id+':'+progress.key;
+  if(db.spontaneousAwards.some(x=>x.key===key))continue;
+  const xp=Math.max(0,Math.min(500,Math.round(Number(rule.xp)||0)));
+  const coins=Math.max(0,Math.min(200,Math.round(Number(rule.coins)||0)));
+  db.spontaneousAwards.push({id:rand(),key,ruleId:rule.id,day,xp,coins,awardedAt:Date.now()});
+  creditXp(xp);db.wallet.coins+=coins;gainedXp+=xp;gainedCoins+=coins;awarded.push(rule.label);
+ }
+ return {xp:gainedXp,coins:gainedCoins,names:awarded};
+}
+function renderSpontaneousPanel(day=dayNow()){
+ const tasks=spontaneousTasksFor(day);
+ if(!tasks.length)return '';
+ const isToday=day===dayNow(),n=spontaneousCount(day);
+ return `<section class="nm-spontaneous-panel">
+  <div class="nm-spontaneous-head"><div><h2>✨ Missions spontanées</h2><p>Sans chrono · autant de fois que tu veux</p></div><span class="nm-spontaneous-total">${n} fois</span></div>
+  <div class="nm-spontaneous-list">${tasks.map(t=>{
+   const cap=taskCaps(t),done=spontaneousCount(day,t.id),pending=spontaneousPending(day,t.id);
+   return `<div class="nm-spontaneous-task">
+    <div class="nm-spontaneous-description"><strong>${escape(t.title)}</strong>
+    <span>✓ ${done} fois · +${cap.xp} XP · +${cap.coins} 🪙 par fois${pending?` · ⏳ ${pending} à valider`:''}</span></div>
+    ${isToday?`<button class="btn primary nm-spontaneous-done" data-action="spontaneous-done" data-id="${escape(t.id)}">✓ FAIT !</button>`:''}
+   </div>`;
+  }).join('')}</div>
+  <p class="nm-spontaneous-hint">Des bonus de fréquence et de régularité t’attendent dans 🏆 Défis.</p>
+ </section>`;
+}
+async function completeSpontaneous(taskId){
+ try{
+  const result=await call('/spontaneous/complete','POST',{taskId});
+  await refresh(true);
+  if(result.status==='pending_parent')toast('⏳ À faire valider par un parent.');
+  else {beep(860,.12);toast('⚡ +'+result.points.xp+' XP · +'+result.points.coins+' 🪙'+(result.bonus?.names?.length?' · 🏆 Défi débloqué !':''));}
+ }catch(e){toast('Mission non enregistrée : '+e.message)}
+}
+
 function walletBadge(){return `<span class="pill gold">🪙 ${Number(data.wallet.coins)||0}</span><span class="pill cyan">⚡ ${Number(data.wallet.xp)||0} XP</span>`}
 function parentGuard(){return role==='parent'&&!pinUnlocked}
 function render(){if(!initDone)return;

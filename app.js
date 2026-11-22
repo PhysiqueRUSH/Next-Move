@@ -593,17 +593,53 @@ function renderChallenges(){const done=data.runs.filter(r=>r.status==='complete'
   <p class="small muted">Les missions soumises à validation parentale comptent seulement après approbation.</p>
  </section>
 
+ <section class="card nm-arcade-section"><div class="row between"><h2 style="margin:0">🕹️ Mini-jeux</h2><span class="pill cyan">${(data.unlockedGames||[]).length} / ${ARCADE_GAMES.length}</span></div>
+ <p class="small muted">Débloque un jeu surprise dans Cadeaux, puis joue ici quand tu veux.</p>
+ <div class="nm-arcade-grid">${ARCADE_GAMES.map(g=>{
+  const owned=(data.unlockedGames||[]).includes(g.id);
+  return `<button class="nm-arcade-card ${owned?'owned':'locked'}" data-action="play-game" data-id="${g.id}" ${owned?'':'disabled'}>
+  <span class="nm-arcade-emoji">${owned?g.icon:'🔒'}</span>
+  <strong>${owned?g.name:'À débloquer'}</strong>
+  <small>${owned?g.genre:'🎁 Cadeaux'}</small>
+  </button>`;
+ }).join('')}</div>
+ </section>
  <section class="card" style="margin-top:12px"><h2>🎖️ Trophées à débloquer</h2><div class="badge-grid">${badges.map(([icon,name,fn])=>`<div class="trophy ${fn()?'':'locked'}"><span class="emoji">${icon}</span><strong>${name}</strong><span class="tiny muted">${fn()?'DÉBLOQUÉ':'À GAGNER'}</span></div>`).join('')}</div></section>
  <section class="card" style="margin-top:12px"><h2>🎯 Défis du parent</h2>${(data.config.customChallenges||[]).length?(data.config.customChallenges||[]).map(c=>`<div class="mission"><span>🎯</span><div class="info"><strong>${escape(c.name)}</strong><p>${escape(c.description)} · Récompense : ${Number(c.coins)||0} pièces (validation parentale)</p></div></div>`).join(''):'<p class="small muted">Aucun défi parental pour l’instant.</p>'}</section>`;
 }
-function renderShop(){
- return `<div class="row between" style="margin:10px 0 20px"><h2 style="margin:0">🎁 CADEAUX</h2><span class="pill gold">${data.wallet.coins} pièces</span></div>
- <p class="small muted">Gagne des pièces en réussissant tes missions, puis choisis un cadeau.</p>
- <div class="stack">
- ${(data.config.rewards||[]).filter(r=>r.active!==false).map(r=>`<div class="reward"><span class="emoji">${escape(r.icon||'🎁')}</span><div class="info"><strong>${escape(r.name)}</strong><p>🎟️ ${r.cost} pièces · Approbation parentale</p></div><button class="btn mini primary" data-action="request-reward" data-id="${escape(r.id)}" ${data.wallet.coins<r.cost?'disabled':''}>Obtenir</button></div>`).join('')}
- <section class="card"><h2>📜 Mes demandes</h2>${(data.requests||[]).slice(0,12).map(r=>`<div class="mission"><span class="time">${r.cost}🪙</span><div class="info"><strong>${escape(data.config.rewards.find(x=>x.id===r.reward_id)?.name||'Récompense')}</strong><p>${r.status==='pending'?'⏳ En attente du parent':r.status==='approved'?'✅ Accordée':'❌ Non validée'}</p></div></div>`).join('')||'<p class="small muted">Aucune demande pour l’instant.</p>'}</section></div>`;
+
+
+function playArcadeGame(id){
+ const game=ARCADE_GAMES.find(g=>g.id===id);
+ if(!game||(data.unlockedGames||[]).includes(id)===false)return toast('Débloque ce jeu dans Cadeaux.');
+ if(!globalThis.NEXT_MOVE_ARCADE?.mount)return toast('Jeux non chargés : recharge NEXT MOVE.');
+ openModal(`<div class="nm-arcade-modal">
+  <div class="nm-arcade-title"><h2>${game.icon} ${escape(game.name)}</h2><button class="btn mini" data-action="close-modal">✕</button></div>
+  <div id="nm-arcade-stage" role="region" aria-label="Mini-jeu ${escape(game.name)}"></div>
+  <p class="nm-arcade-foot">🎮 Mini-jeu libre · aucun XP ni pièce supplémentaire</p>
+ </div>`);
+ globalThis.NEXT_MOVE_ARCADE.mount(id,$('#nm-arcade-stage'));
 }
-function rankName(n){return n>=15?'Légende':n>=10?'Élite':n>=7?'Champion':n>=4?'Explorateur':'Recrue'}
+
+function renderShop(){
+ const owned=(data.unlockedGames||[]).length;
+ return `<div class="row between" style="margin:10px 0 20px"><h2 style="margin:0">🎁 CADEAUX</h2><span class="pill gold">${data.wallet.coins} pièces</span></div>
+ <div class="nm-shop-info">🕹️ Mini-jeux débloqués : ${owned} / ${ARCADE_GAMES.length}</div>
+ <div class="stack">
+ ${sortedRewards().filter(r=>r.active!==false).map(r=>{
+  const arcade=arcadeReward(r),soldOut=arcade&&!availableArcadeGames(data.unlockedGames).length;
+  return `<div class="reward">
+   <span class="emoji">${escape(r.icon||'🎁')}</span>
+   <div class="info"><strong>${escape(r.name)}</strong><p>🪙 ${r.cost} pièces${arcade?' · 🎲 Nouveau jeu surprise':''}</p></div>
+   <button class="btn mini primary" data-action="request-reward" data-id="${escape(r.id)}" ${data.wallet.coins<Number(r.cost)||soldOut?'disabled':''}>${soldOut?'Collection complète':'Obtenir'}</button>
+  </div>`;
+ }).join('')}
+ <section class="card"><h2>📜 Mes demandes</h2>${(data.requests||[]).slice(0,12).map(r=>{
+  const found=ARCADE_GAMES.find(g=>g.id===r.grantedGameId);
+  return `<div class="mission"><span class="time">${r.cost} 🪙</span><div class="info"><strong>${escape(data.config.rewards.find(x=>x.id===r.reward_id)?.name||'Récompense')}</strong>
+  <p>${r.status==='pending'?'⏳ En attente du parent':r.status==='approved'?'✅ Accordée':'❌ Non validée'}${found?' · 🕹️ '+escape(found.name):''}</p></div></div>`;
+ }).join('')||'<p class="small muted">Aucune demande pour l’instant.</p>'}</section></div>`;
+}
 
 const LEVEL_REWARDS={
  avatar:[['🚀',1,'Pilote'],['⚡',2,'Flash'],['🦾',3,'Force'],['🏎️',4,'Turbo'],['🥷',5,'Ninja'],['🎯',6,'Cible'],['🛸',7,'OVNI'],['🔥',8,'Flamme'],['🪐',9,'Cosmos'],['👑',10,'Roi'],['🐺',11,'Loup'],['🦈',12,'Requin'],['🦅',13,'Aigle'],['🐆',14,'Panthère'],['🐉',15,'Dragon'],['🧠',16,'Cerveau'],['💎',17,'Diamant'],['🤖',18,'Robot'],['🦊',19,'Renard'],['🏆',20,'Champion'],['🛡️',22,'Bouclier'],['🌩️',24,'Orage'],['🌌',26,'Galaxie'],['🦁',28,'Lion'],['🌠',30,'Étoile'],['🗿',35,'Titan'],['☄️',40,'Comète']],
@@ -665,7 +701,7 @@ function renderAdminCalendar(){return `${adminHeading('📅 CALENDRIER INTELLIGE
  <section class="card" style="margin-top:14px"><div class="row between"><h2 style="margin:0">Exceptions</h2><button class="btn mini primary" data-action="add-exception">+ Exception</button></div>${(data.config.exceptions||[]).map(e=>`<div class="mission"><span>🗓️</span><div class="info"><strong>${e.day}</strong><p>${escape(data.config.tasks.find(t=>t.id===(e.taskId||e.hideTaskId))?.title||'Mission')} · ${e.hideTaskId?'Masquée':'Horaire exceptionnel'}</p></div><button class="btn mini danger" data-action="del-exception" data-id="${e.id}">×</button></div>`).join('')||'<p class="small muted">Aucune exception pour l’instant.</p>'}</section>`}
 function renderAdminRewards(){return `${adminHeading('🪙 BOUTIQUE & DÉFIS','Édite librement les récompenses concrètes, leurs prix et les défis exceptionnels.')}
  <div class="row" style="margin:12px 0"><button class="btn primary" data-action="edit-reward">+ Récompense</button><button class="btn" data-action="add-challenge">+ Défi parental</button></div>
- <div class="stack">${data.config.rewards.map(r=>`<div class="reward"><span class="emoji">${escape(r.icon)}</span><div class="info"><strong>${escape(r.name)}</strong><p>${r.cost} pièces · ${r.active===false?'Inactif':'Actif'}</p></div><button class="btn mini" data-action="edit-reward" data-id="${r.id}">Modifier</button></div>`).join('')}</div>
+ <div class="stack">${sortedRewards().map(r=>`<div class="reward"><span class="emoji">${escape(r.icon)}</span><div class="info"><strong>${escape(r.name)}</strong><p>${r.cost} pièces · ${r.active===false?'Inactif':'Actif'}</p></div><button class="btn mini" data-action="edit-reward" data-id="${r.id}">Modifier</button></div>`).join('')}</div>
  <section class="card" style="margin-top:14px"><h2>Défis créés par le parent</h2>${(data.config.customChallenges||[]).map(c=>`<div class="mission"><span>🎯</span><div class="info"><strong>${escape(c.name)}</strong><p>${escape(c.description)} · ${c.coins} pièces</p></div><button class="btn mini success" data-action="award-challenge" data-id="${c.id}">+ pièces</button><button class="btn mini danger" data-action="del-challenge" data-id="${c.id}">×</button></div>`).join('')||'<p class="muted small">Aucun défi ajouté.</p>'}</section>`}
 function renderAdminSettings(){const rules=hwRules();return `${adminHeading('⚙️ RÉGLAGES','Gestion du compte familial, du jumelage, de PRONOTE et de la sauvegarde.')}
  <section class="card"><h2>Compte parent</h2><p class="small muted">Stockage local sur le téléphone de Mahé</p><div class="row wrap"><button class="btn" data-action="change-pin">Changer mon PIN</button><button class="btn" data-action="export">Exporter ma sauvegarde</button><button class="btn" data-action="import">Restaurer une sauvegarde</button><input id="backup-import" type="file" accept="application/json,.json" hidden>${connected?'<button class="btn danger" data-action="logout">Déconnexion Google</button>':''}</div></section>
@@ -712,7 +748,7 @@ function renderPairing(){$('#app').innerHTML=`<main class="app"><div class="setu
 function renderPin(){const set=!!localStorage.getItem(pinKey);$('#app').innerHTML=`<main class="app"><section class="setup card"><div class="center" style="font-size:45px">🔐</div><h1>${set?'Accès parent':'Créer ton PIN'}</h1><p>${set?'Saisis ton code personnel à 4 chiffres.':'Choisis ton code à 4 chiffres. Il protège les réglages de cette application sur ce téléphone.'}</p><div class="field"><label>${set?'Code parent':'Nouveau code'}</label><input id="pin-entry" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="••••"></div>${set?'':`<div class="field"><label>Confirmer le code</label><input id="pin-confirm" type="password" inputmode="numeric" maxlength="4" placeholder="••••"></div>`}<button class="btn primary block" data-action="pin-submit">${set?'Déverrouiller':'Créer le PIN'}</button>${!connected?'<button class="btn block" data-action="switch-child">Retour à Mahé</button>':''}</section></main>`}
 async function hashPin(pin){const salt='NEXT MOVE LOCAL PIN v1';const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(salt+pin));return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('')}
 function openModal(html){$('#modal-root').innerHTML=`<div class="modal-backdrop" data-backdrop="true"><section class="modal"><button class="modal-close" data-action="close-modal">×</button>${html}</section></div>`;window.scrollTo(0,0)}
-const closeModal=()=>$('#modal-root').innerHTML='';
+const closeModal=()=>{globalThis.NEXT_MOVE_ARCADE?.stop?.();$('#modal-root').innerHTML='';};
 function dayChecks(days=[1,2,3,4,5]){return `<div class="checks">${WEEK.map((d,i)=>`<label class="check"><input type="checkbox" name="days" value="${i}" ${days.includes(i)?'checked':''}>${d}</label>`).join('')}</div>`}
 function modeChecks(modes=['school']){return `<div class="checks">${[['school','École'],['weekend','Week-end'],['vacation','Vacances']].map(([val,label])=>`<label class="check"><input type="checkbox" name="modes" value="${val}" ${modes.includes(val)?'checked':''}>${label}</label>`).join('')}</div>`}
 function field(label,name,type='text',value='',other=''){return `<div class="field"><label for="f-${name}">${label}</label><input id="f-${name}" name="${name}" type="${type}" value="${escape(value)}" ${other}></div>`}
@@ -1179,6 +1215,7 @@ const actions={
  'duplicate-task':async(_,el)=>{const conf=cloneConfig(),t=conf.tasks.find(x=>x.id===el.dataset.id);if(!t)return;conf.tasks.push({...t,id:rand(),title:t.title+' (copie)',enabled:false});await updateConfig(conf)},
  'delete-task':async(_,el)=>{if(!confirm('Supprimer cette mission ?'))return;const c=cloneConfig();c.tasks=c.tasks.filter(t=>t.id!==el.dataset.id);closeModal();await updateConfig(c)},
  'edit-reward':(_,el)=>rewardModal(el.dataset.id),
+ 'play-game':(_,el)=>playArcadeGame(el.dataset.id),
  'request-reward':async(_,el)=>{if(!confirm('Demander cette récompense au parent ?'))return;try{await call('/reward/request','POST',{rewardId:el.dataset.id});await refresh(true);toast('🎁 Demande envoyée !')}catch(e){toast(e.message)}},
  'approve':(_,el)=>resolveRun(el.dataset.id,true),
  'reject':(_,el)=>resolveRun(el.dataset.id,false),
@@ -1253,7 +1290,13 @@ async function resolvePenalty(id,approve){
  try{await call('/run/penalty-resolve','POST',{id,approve});await refresh(true);toast(approve?'Pénalité confirmée':'Pénalité annulée')}
  catch(e){toast('Erreur : '+e.message)}
 }
-async function resolveReward(requestId,approve){try{await call('/reward/resolve','POST',{requestId,approve});await refresh(true);toast(approve?'🎁 Récompense accordée':'Demande refusée')}catch(e){toast(e.message)}}
+async function resolveReward(requestId,approve){
+ try{
+  const response=await call('/reward/resolve','POST',{requestId,approve});
+  await refresh(true);
+  toast(approve?(response.game?'🕹️ Nouveau jeu : '+response.game.name+' !':'🎁 Récompense accordée'):'Demande refusée');
+ }catch(e){toast(e.message)}
+}
 function futureDate(s,n){const d=new Date(s+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)}
 
 function modalReset(){

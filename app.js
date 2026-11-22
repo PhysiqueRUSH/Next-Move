@@ -170,6 +170,22 @@ function applyLevelRewards(){
  if(gained)db.wallet.coins+=gained;
  return gained;
 }
+function adjustCoins(delta,source,reason='',runId=null){
+ if(!Number.isInteger(delta)||delta===0||Math.abs(delta)>10000)throw Error('Montant invalide (1 à 10 000 pièces).');
+ const before=Math.max(0,Math.floor(Number(db.wallet.coins)||0)),after=Math.max(0,before+delta),applied=after-before;
+ db.wallet.coins=after;
+ const entry={id:rand(),created_at:Date.now(),day:dayNow(),requested:delta,delta:applied,balance:after,source,reason:String(reason||'').slice(0,140),runId};
+ db.coinLedger=Array.isArray(db.coinLedger)?db.coinLedger:[];
+ db.coinLedger.unshift(entry);
+ db.coinLedger=db.coinLedger.slice(0,300);
+ return entry;
+}
+function selectRandomAvailableGame(){
+ const games=availableArcadeGames(db.unlockedGames);
+ if(!games.length)throw Error('Tous les mini-jeux sont déjà débloqués.');
+ const n=globalThis.crypto?.getRandomValues?globalThis.crypto.getRandomValues(new Uint32Array(1))[0]:Math.floor(Math.random()*4294967296);
+ return games[n%games.length];
+}
 function latePenaltyProposal(){
  const conf=data.config||{};
  if(conf.overrunPolicy!=='propose')return null;
@@ -865,6 +881,10 @@ async function demoCall(path,method,body){let result={ok:true};
     r.penaltyDecision='approved';
    }else r.penaltyDecision='waived';
   }
+  const adjustment=Number(body.coinsAdjustment||0);
+  if(!Number.isInteger(adjustment)||Math.abs(adjustment)>500)throw Error('Bonus/malus limité à 500 pièces.');
+  if(!body.approve&&adjustment>0)throw Error('Impossible d’accorder un bonus à une mission refusée.');
+  if(adjustment)result.coinAdjustment=adjustCoins(adjustment,'mission',body.reason||'',r.id);
   result.status=r.status;
   result.points={xp:r.xp,coins:r.coins};
   result.penaltyApplied=r.penaltyApplied||null;
@@ -892,10 +912,41 @@ async function demoCall(path,method,body){let result={ok:true};
  }
  else if(path==='/homework'){const hw={id:'hw-'+rand(),parent_uid:'demo',subject:body.subject,estimate:body.estimate,day:body.day,details:body.details,due:body.due,done:0};db.homework.push(hw);result.id=hw.id;}
  else if(path==='/homework/delete'){db.homework=db.homework.filter(h=>h.id!==body.id)}
- else if(path==='/reward/request'){const r=db.config.rewards.find(x=>x.id===body.rewardId);if(db.wallet.coins<r.cost)throw Error('NOT_ENOUGH_COINS');db.requests.unshift({id:rand(),reward_id:r.id,cost:r.cost,status:'pending',created_at:Date.now()});}
- else if(path==='/reward/resolve'){const r=db.requests.find(x=>x.id===body.requestId);if(r&&r.status==='pending'){r.status=body.approve?'approved':'rejected';if(body.approve)db.wallet.coins=Math.max(0,db.wallet.coins-r.cost)}}
+ else if(path==='/reward/request'){
+  const reward=db.config.rewards.find(x=>x.id===body.rewardId&&x.active!==false);
+  if(!reward)throw Error('Cadeau indisponible.');
+  const cost=Number(reward.cost)||0;
+  if(cost<=0||db.wallet.coins<cost)throw Error('Pas assez de pièces.');
+  if(arcadeReward(reward)){
+   const pending=db.requests.filter(x=>x.status==='pending'&&x.kind==='arcade').length;
+   if(availableArcadeGames(db.unlockedGames).length<=pending)throw Error('Aucun nouveau mini-jeu disponible.');
+  }
+  const request={id:rand(),reward_id:reward.id,cost,kind:arcadeReward(reward)?'arcade':'normal',status:'pending',created_at:Date.now()};
+  db.requests.unshift(request);result.request=request;
+ }
+ else if(path==='/reward/resolve'){
+  const r=db.requests.find(x=>x.id===body.requestId&&x.status==='pending');
+  if(!r)throw Error('Demande déjà traitée.');
+  if(body.approve){
+   if(db.wallet.coins<r.cost)throw Error('Pièces insuffisantes pour ce cadeau.');
+   const award= r.kind==='arcade'||r.reward_id==='arcade-random'?selectRandomAvailableGame():null;
+   adjustCoins(-r.cost,'gift',award?'Mini-jeu : '+award.name:'Cadeau',null);
+   if(award){
+    db.unlockedGames.push(award.id);
+    r.grantedGameId=award.id;
+    result.game=award;
+   }
+  }
+  r.status=body.approve?'approved':'rejected';r.resolvedAt=Date.now();
+ }
+ else if(path==='/coins/adjust'){
+  await verifyParentPin(body.pin);
+  const n=Number(body.delta);
+  if(!Number.isInteger(n)||n===0||Math.abs(n)>10000)throw Error('Montant de pièces invalide.');
+  result.adjustment=adjustCoins(n,'parent',body.reason||'');
+ }
  else if(path==='/challenge/award'){const ch=db.config.customChallenges.find(x=>x.id===body.challengeId);if(ch)db.wallet.coins+=Math.max(0,Number(ch.coins)||0)}
- else if(path==='/penalty'){db.wallet.coins=Math.max(0,db.wallet.coins-Number(body.coins));result.deducted=body.coins;}
+ else if(path==='/penalty'){await verifyParentPin(body.pin);const x=adjustCoins(-Math.abs(Number(body.coins)),'parent',body.reason||'');result.deducted=-x.delta;}
  saveDemo();return result;
 }
 async function refresh(quiet=false){if(!initDone)return;try{const result=await call('/me');data={...data,...result};const offline=JSON.parse(localStorage.getItem('nm_offline_running')||'null');if(offline&&!data.runs.find(r=>r.task_id===offline.task_id&&r.day===offline.day))data.runs.unshift(offline);role=connected?result.role:role;if(connected&&role==='parent'&&!(data.config?.tasks?.length)){

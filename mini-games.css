@@ -1,0 +1,61 @@
+/* NEXT MOVE 5 · Profil, niveaux et arcade */ 
+.nm-version{font-size:10px;font-weight:750;letter-spacing:.3px;color:#6de9e1;margin-left:6px;vertical-align:middle}
+.nm-shop-info{color:#a4eee5;font-weight:850;font-size:13px;margin:0 0 15px;padding:10px 12px;background:#143746;border:1px solid #286974;border-radius:12px}
+.nm-arcade-section{margin:14px 0}
+.nm-arcade-section>p{line-height:1.5}
+.nm-arcade-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:15px}
+.nm-arcade-card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;background:#182c45;color:#ebfaff;border:1px solid #43718a;border-radius:15px;min-height:108px;padding:12px 6px;font:inherit;cursor:pointer}
+.nm-arcade-card.owned{border-color:#4fa7a3;background:linear-gradient(145deg,#17404a,#172945)}
+.nm-arcade-card.locked{opacity:.5;cursor:default;filter:grayscale(.25)}
+.nm-arcade-emoji{font-size:30px}
+.nm-arcade-card strong{font-size:13px;text-align:center}
+.nm-arcade-card small{color:#a5cadb;font-size:11px}
+.nm-arcade-modal{max-width:420px;margin:0 auto;color:#effbff}
+.nm-arcade-title{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 12px}
+.nm-arcade-title h2{font-size:21px;margin:0;color:#effbff}
+.nm-arcade-foot{font-size:11px;text-align:center;color:#a3c6d5;margin-top:12px}
+#nm-arcade-stage{display:flex;flex-direction:column;align-items:center;gap:10px}
+.arcade-score{font-size:14px;font-weight:850;color:#81f7e0;text-align:center;min-height:20px}
+.arcade-canvas{width:min(100%,324px);max-height:44vh;object-fit:contain;background:#071727;border:1px solid #397181;border-radius:12px;touch-action:none;image-rendering:pixelated}
+.arcade-controls{width:100%;display:flex;flex-direction:column;align-items:center;gap:10px}
+.arcade-pad{display:flex;justify-content:center;gap:7px;flex-wrap:wrap;width:100%}
+.arcade-btn{border:1px solid #487c9d;background:#1e4260;color:#e4ffff;min-width:53px;min-height:49px;border-radius:12px;font-size:17px;font-weight:850;cursor:pointer;touch-action:manipulation}
+.arcade-btn:active,.arcade-btn:hover{background:#246f82}
+.arcade-restart{width:auto;padding:8px 25px;background:#144a50;font-size:13px;min-height:39px}
+.arcade-2048,.arcade-mines,.arcade-memory,.arcade-simon,.arcade-whack,.arcade-tic{width:min(100%,322px);display:grid;gap:6px;position:relative}
+.arcade-2048{grid-template-columns:repeat(4,minmax(0,1fr));background:#293c52;padding:7px;border-radius:14px;touch-action:none}
+.arcade-tile{height:66px;display:flex;align-items:center;justify-content:center;background:#172b40;color:#fff;border-radius:8px;font-size:21px;font-weight:950}
+.arcade-tile-2{background:#397778}.arcade-tile-4{background:#3e9a94}.arcade-tile-8{background:#278eb3}.arcade-tile-16{background:#696bcc}.arcade-tile-32{background:#9b69d3}.arcade-tile-64{background:#c57ea3}.arcade-tile-128,.arcade-tile-256,.arcade-tile-512,.arcade-tile-1024,.arcade-tile-2048{background:#d69a52;color:#0e2130}
+.arcade-2048-end{position:absolute;inset:0;background:#142537cf;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900}
+.arcade-mines{grid-template-columns:repeat(8,minmax(0,1fr));gap:3px}
+.arcade-mine{aspect-ratio:1;border:1px solid #4a7188;border-radius:6px;background:#23445d;color:#fff;font-size:14px;padding:0;min-width:0;cursor:pointer}
+.arcade-mine.open{background:#0d283e;border-color:#243e54}
+.arcade-memory{grid-template-columns:repeat(4,minmax(0,1fr))}
+.arcade-card{aspect-ratio:1;border:1px solid #476e88;background:#264861;color:#fff;border-radius:11px;font-size:29px;min-width:0;cursor:pointer}
+.arcade-card.flipped,.arcade-card.found{background:#12605e}.arcade-card.found{opacity:.6}
+.arcade-simon{grid-template-columns:repeat(2,minmax(0,1fr))}
+.arcade-simon button{aspect-ratio:1;border:2px solid #47738e;background:#17263e;border-radius:18px;font-size:51px;cursor:pointer;opacity:.7}
+.arcade-simon button.lit{opacity:1;transform:scale(1.04);background:#3d5362;box-shadow:0 0 35px #73f5ccaa}
+.arcade-message{font-size:13px;color:#c5e2ec;font-weight:750;text-align:center}
+.arcade-whack,.arcade-tic{grid-template-columns:repeat(3,minmax(0,1fr))}
+.arcade-hole,.arcade-tic-cell{aspect-ratio:1;border:1px solid #447b87;border-radius:11px;background:#182f48;color:#fff;font-size:40px;cursor:pointer}
+.arcade-tic-cell:disabled{opacity:.8}
+.nm-extra-coins{background:#142d43;border:1px solid #396a80;border-radius:13px;padding:12px;margin:12px 0;display:grid;gap:7px}
+.nm-extra-coins label{color:#daeff9;font-size:13px;font-weight:800}
+.nm-extra-coins input{border:1px solid #3c718b;background:#102238;border-radius:10px;padding:10px;color:#fff;font-weight:850;font-size:20px}
+.nm-extra-coins small{color:#a6cddd}
+.nm-effect-pulse .mark-icon{animation:nm-pulse 2.6s ease-in-out infinite}
+.nm-effect-aurora .header{background:linear-gradient(100deg,#12383d,#21264e,#173941);background-size:250% 100%;animation:nm-aurora 9s ease infinite}
+.nm-effect-comet .mark-icon{animation:nm-turn 10s linear infinite}
+.nm-effect-neon .brand,.nm-effect-hologram .brand{text-shadow:0 0 12px #49ecda,0 0 24px #4bbbd5}
+.nm-effect-glimmer .profile-portrait,.nm-effect-starlight .mark-icon{box-shadow:0 0 24px #ffe59a,0 0 11px #cbaafc}
+.nm-effect-rainbow .header{border-bottom:3px solid transparent;border-image:linear-gradient(90deg,#5fffff,#867aff,#ff9fcc,#ffe9a1) 1}
+.nm-effect-meteor .header{box-shadow:inset 0 -3px 12px #55e9ff55}
+.nm-effect-champion .mark-icon{box-shadow:0 0 14px #ffcd6b,inset 0 0 10px #ffe4a9}
+.nm-effect-cyber .header{background:repeating-linear-gradient(130deg,#172739,#172739 18px,#1c3347 19px,#172739 20px)}
+@keyframes nm-pulse{50%{filter:brightness(1.6);transform:scale(1.1)}}
+@keyframes nm-aurora{50%{background-position:100% 50%}}
+@keyframes nm-turn{to{transform:rotate(360deg)}}
+@media(min-width:540px){.nm-arcade-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:400px){.arcade-tile{height:58px;font-size:18px}.arcade-simon button{font-size:40px}.arcade-btn{min-width:46px}}
+@media(prefers-reduced-motion:reduce){.nm-effect-pulse .mark-icon,.nm-effect-aurora .header,.nm-effect-comet .mark-icon{animation:none}}

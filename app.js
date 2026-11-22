@@ -652,7 +652,9 @@ function renderAdminStats(){const last7=data.runs.filter(r=>r.day>=futureDays(-6
  ${penalties.map(r=>`<div class="mission"><span>⌛</span><div class="info"><strong>${escape(data.config.tasks.find(t=>t.id===r.task_id)?.title||((data.homeworkBlocks||[]).some(b=>b.id===r.task_id)?'Bloc de devoirs':'Mission'))}</strong><p>${r.day} · ${pretty(r.elapsed_s||0)} · limite ${r.max_minutes} min</p><p>Proposition : −${r.penaltyProposal?.xp||0} XP / −${r.penaltyProposal?.coins||0} 🪙</p></div><button class="btn mini danger" data-action="penalty-approve" data-id="${r.id}">Appliquer</button><button class="btn mini" data-action="penalty-waive" data-id="${r.id}">Annuler</button></div>`).join('')||'<p class="small muted">Aucun dépassement à examiner.</p>'}
  <div class="divider"></div><h2>🎁 Demandes de récompense (${redeems.length})</h2>${redeems.map(r=>`<div class="mission"><span>🪙</span><div class="info"><strong>${escape(data.config.rewards.find(x=>x.id===r.reward_id)?.name||'Récompense')}</strong><p>${r.cost} pièces</p></div><button class="btn mini success" data-action="reward-approve" data-id="${r.id}">✓</button><button class="btn mini danger" data-action="reward-reject" data-id="${r.id}">×</button></div>`).join('')||'<p class="small muted">Aucune demande en attente.</p>'}</section>
  <section class="card" style="margin-top:14px"><h2>🧠 Progression d’autonomie</h2><p class="small muted">Mode actuel : <b>${['','Guidé','Semi-autonome','Autonome'][data.config.rankMode||1]}</b>. Les changements sont proposés selon les résultats, mais validés par toi.</p><div class="progress"><span style="width:${early}%"></span></div><p class="small">${goal?'🏅 Mahé pourrait passer au palier suivant : ses démarrages sont réguliers.':'Objectif indicatif : au moins 15 missions réussies et 75 % de départs sans retard.'}</p><button class="btn" data-action="autonomy">Changer le palier</button></section>
- <section class="card" style="margin-top:14px"><h2>🪙 Pénalités manuelles</h2><p class="small muted">Aucune pénalité n’est automatique. Tu choisis un manquement et confirmes un petit retrait en pièces (maximum 20 par opération, solde jamais négatif).</p><button class="btn danger" data-action="penalty">Examiner une pénalité</button></section>`;
+ <section class="card" style="margin-top:14px"><h2>🪙 Bonus / malus</h2><button class="btn primary" data-action="adjust-coins">+ Donner / − Reprendre des pièces</button>
+ <p class="small muted">PIN obligatoire · Solde jamais négatif.</p>
+ ${(data.coinLedger||[]).slice(0,6).map(x=>`<p class="small muted">🪙 ${x.delta>0?'+':''}${x.delta} · ${escape(x.reason||x.source)} · solde ${x.balance}</p>`).join('')}</section>`;
 }
 function renderAdminTasks(){const tasks=data.config.tasks||[];return `${adminHeading('🎯 ÉDITEUR DE MISSIONS','Missions classiques et spontanées, durées, jours actifs et récompenses personnalisables.')}
  <div class="row" style="margin:16px 0"><button class="btn primary" data-action="edit-task">+ Nouvelle mission</button><span class="pill cyan">${tasks.filter(t=>t.enabled).length} actives</span></div>
@@ -667,6 +669,7 @@ function renderAdminRewards(){return `${adminHeading('🪙 BOUTIQUE & DÉFIS','�
  <section class="card" style="margin-top:14px"><h2>Défis créés par le parent</h2>${(data.config.customChallenges||[]).map(c=>`<div class="mission"><span>🎯</span><div class="info"><strong>${escape(c.name)}</strong><p>${escape(c.description)} · ${c.coins} pièces</p></div><button class="btn mini success" data-action="award-challenge" data-id="${c.id}">+ pièces</button><button class="btn mini danger" data-action="del-challenge" data-id="${c.id}">×</button></div>`).join('')||'<p class="muted small">Aucun défi ajouté.</p>'}</section>`}
 function renderAdminSettings(){const rules=hwRules();return `${adminHeading('⚙️ RÉGLAGES','Gestion du compte familial, du jumelage, de PRONOTE et de la sauvegarde.')}
  <section class="card"><h2>Compte parent</h2><p class="small muted">Stockage local sur le téléphone de Mahé</p><div class="row wrap"><button class="btn" data-action="change-pin">Changer mon PIN</button><button class="btn" data-action="export">Exporter ma sauvegarde</button><button class="btn" data-action="import">Restaurer une sauvegarde</button><input id="backup-import" type="file" accept="application/json,.json" hidden>${connected?'<button class="btn danger" data-action="logout">Déconnexion Google</button>':''}</div></section>
+ <section class="card" style="margin-top:14px"><h2>🪙 Gestion des pièces</h2><button class="btn primary block" data-action="adjust-coins">Donner / reprendre des pièces (PIN)</button></section>
  <section class="card" style="margin-top:14px"><h2>📱 Données sur cet appareil</h2><p class="small muted">Les missions, XP, récompenses et historiques restent sur ce Samsung. Exporter une sauvegarde est indispensable avant de changer de téléphone ou d'effacer les données de Chrome. Le PIN est une protection d'interface, pas un coffre-fort inviolable.</p><div id="pair-code"></div></section>
  <section class="card" style="margin-top:14px"><h2>Configuration générale</h2><div class="field"><label>Prénom</label><input id="child-name" value="${escape(data.config.childName||'Mahé')}" maxlength="30"></div><div class="field"><label>URL PRONOTE (facultatif)</label><input id="pronote-url" value="${escape(data.config.pronoteUrl||'')}" placeholder="https://..."></div><div class="field"><label>Niveau d’autonomie</label><select id="rank-mode"><option value="1" ${data.config.rankMode===1?'selected':''}>Guidé</option><option value="2" ${data.config.rankMode===2?'selected':''}>Semi-autonome</option><option value="3" ${data.config.rankMode===3?'selected':''}>Autonome</option></select></div><button class="btn primary" data-action="save-settings">Enregistrer</button></section>
 
@@ -864,6 +867,9 @@ async function demoCall(path,method,body){let result={ok:true};
   const r=db.runs.find(x=>x.id===body.id&&x.status==='pending_parent');
   if(!r)throw Error('Cette validation n’est plus disponible.');
   await verifyParentPin(body.pin);
+  const adjustment=Number(body.coinsAdjustment||0);
+  if(!Number.isInteger(adjustment)||Math.abs(adjustment)>500)throw Error('Bonus/malus limité à 500 pièces.');
+  if(!body.approve&&adjustment>0)throw Error('Impossible d’accorder un bonus à une mission refusée.');
   r.status=body.approve?'complete':'rejected';
   if(body.approve){
    creditXp(r.xp);db.wallet.coins+=r.coins;
@@ -881,9 +887,6 @@ async function demoCall(path,method,body){let result={ok:true};
     r.penaltyDecision='approved';
    }else r.penaltyDecision='waived';
   }
-  const adjustment=Number(body.coinsAdjustment||0);
-  if(!Number.isInteger(adjustment)||Math.abs(adjustment)>500)throw Error('Bonus/malus limité à 500 pièces.');
-  if(!body.approve&&adjustment>0)throw Error('Impossible d’accorder un bonus à une mission refusée.');
   if(adjustment)result.coinAdjustment=adjustCoins(adjustment,'mission',body.reason||'',r.id);
   result.status=r.status;
   result.points={xp:r.xp,coins:r.coins};
@@ -1196,7 +1199,8 @@ const actions={
  'save-settings':async()=>{const c=cloneConfig();c.childName=$('#child-name').value.trim()||'Mahé';c.rankMode=Number($('#rank-mode').value);c.pronoteUrl=$('#pronote-url').value.trim();await updateConfig(c)},
  'change-pin':()=>{if(!confirm('Remplacer le PIN local de ce téléphone ?'))return;localStorage.removeItem(pinKey);pinUnlocked=false;render()},
  'autonomy':()=>openModal(`<h2>🧠 Palier d’autonomie</h2><p class="small muted">Le palier est indépendant du niveau XP. Sa progression nécessite ton approbation.</p><form id="autonomy-form">${selectField('Nouveau palier','rankMode',[[1,'Guidé'],[2,'Semi-autonome'],[3,'Autonome']],data.config.rankMode||1)}<button class="btn primary block">Valider le palier</button></form>`),
- 'penalty':()=>penaltyModal(),
+ 'penalty':()=>modalAdjustCoins(-3),
+ 'adjust-coins':()=>modalAdjustCoins(5),
  'reset-open':()=>modalReset(),
  'penalty-approve':(_,el)=>resolvePenalty(el.dataset.id,true),
  'penalty-waive':(_,el)=>resolvePenalty(el.dataset.id,false),
@@ -1221,6 +1225,8 @@ function modalApproveRun(id){
   <div class="nm-result-summary">${r.spontaneous?'<span>✨ Tâche spontanée · sans chrono</span>':`<span>⏱️ Chrono arrêté à <strong>${pretty(Number(r.elapsed_s)||0)}</strong></span>`}<span>⚡ ${Number(r.xp)||0} XP · 🪙 ${Number(r.coins)||0} pièce(s) en attente</span></div>
   ${r.overrun?'<p class="nm-penalty-warning">Limite dépassée : cette mission ne rapporte aucun point.</p>':''}
   ${penalty?`<label class="nm-penalty-choice"><input type="checkbox" id="nm-apply-penalty" checked> Appliquer le malus proposé : −${Number(penalty.xp)||0} XP disponibles et −${Number(penalty.coins)||0} pièces</label>`:''}
+  <div class="nm-extra-coins"><label for="nm-run-coins">🪙 Bonus / malus (pièces)</label><input id="nm-run-coins" type="number" min="-500" max="500" step="1" value="0" inputmode="numeric"><small>+ bonus · − malus</small></div>
+  <div class="field"><label for="nm-run-reason">Motif (facultatif)</label><input id="nm-run-reason" maxlength="140" placeholder="Bravo, effort, tâche incomplète…"></div>
   <div class="field"><label for="nm-approval-pin">Code PIN parent (4 chiffres)</label><input id="nm-approval-pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" autocomplete="off" placeholder="••••" aria-label="Code PIN parent"></div>
   <div class="nm-approval-actions"><button class="btn danger" data-action="reject-run-pin" data-id="${escape(id)}">Refuser</button><button class="btn success" data-action="approve-run-pin" data-id="${escape(id)}">✓ Valider</button></div>
   <p class="small muted">${r.spontaneous?'Vérifie simplement que Mahé a bien réalisé cette action. Aucun chrono n’a été lancé.':'Le chrono est arrêté depuis que Mahé a déclaré la fin. Aucune minute supplémentaire n’est comptée.'}</p>`);
@@ -1231,9 +1237,11 @@ async function resolveRun(id,approve){
 async function resolveRunWithPin(id,approve){
  const pin=$('#nm-approval-pin')?.value||'';
  const applyPenalty=!!$('#nm-apply-penalty')?.checked;
+ const coinsAdjustment=Number($('#nm-run-coins')?.value||0),reason=$('#nm-run-reason')?.value||'';
+ if(!Number.isInteger(coinsAdjustment)||Math.abs(coinsAdjustment)>500)return toast('Montant limité à 500 pièces.');
  if(!/^\d{4}$/.test(pin))return toast('Saisis le code PIN parental à 4 chiffres.');
  try{
-  const response=await call('/run/approve','POST',{id,approve,pin,applyPenalty});
+  const response=await call('/run/approve','POST',{id,approve,pin,applyPenalty,coinsAdjustment,reason});
   closeModal();await refresh(true);
   if(approve)toast('✅ Mission vérifiée · '+(response.points?.xp||0)+' XP et '+(response.points?.coins||0)+' pièces crédités');
   else toast('Mission non validée : aucun gain attribué.');
@@ -1281,6 +1289,17 @@ async function performReset(mode,pin,phrase){
  resetState(mode);
  role='child';pinUnlocked=false;activeDay=dayNow();tab='planning';
  closeModal();render();toast('NEXT MOVE a été réinitialisé');
+}
+
+function modalAdjustCoins(defaultDelta=5){
+ if(role!=='parent'||!pinUnlocked)return toast('Accès parent requis');
+ openModal(`<h2>🪙 Bonus / malus</h2><p class="small muted">Ajoute des pièces ou retire-en. Chaque opération demande ton PIN.</p>
+  <form id="coin-adjust-form">
+  ${field('Pièces (+ pour donner / − pour reprendre)','delta','number',defaultDelta,'min="-10000" max="10000" step="1" required')}
+  ${field('Motif','reason','text','','maxlength="140" placeholder="Effort, aide, règle…"')}
+  ${field('Code PIN parental','pin','password','','inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required autocomplete="off"')}
+  <button class="btn primary block" type="submit">✓ Confirmer</button>
+  </form>`);
 }
 function penaltyModal(){const misses=tasksFor(dayNow()).filter(t=>!runFor(t.id,dayNow()));openModal(`<h2>🪙 Pénalité sur décision parentale</h2><p class="helper">Aucune perte de XP ni de trophées. Retrait maximal de 20 pièces, uniquement après ton accord.</p><form id="penalty-form">${selectField('Mission concernée','taskId',(misses.length?misses:tasksFor(dayNow())).map(t=>[t.id,t.title]),misses[0]?.id||'')}${field('Date','day','date',dayNow(),'required')}${field('Pièces à retirer','coins','number',3,'min="1" max="20" required')}<div class="form-actions"><button type="button" class="btn" data-action="close-modal">Annuler</button><button class="btn danger">Confirmer la pénalité</button></div></form>`)}
 async function restoreBackup(file){
@@ -1428,6 +1447,13 @@ async function onForm(event){const form=event.target;if(!form.id)return;event.pr
  else if(form.id==='exception-form'){const c=cloneConfig(),common={id:rand(),day:get('day')};c.exceptions.push(get('kind')==='hide'?{...common,hideTaskId:get('taskId')}:{...common,taskId:get('taskId'),changes:{time:get('time')}});closeModal();await updateConfig(c)}
  else if(form.id==='challenge-form'){const c=cloneConfig();c.customChallenges.push({id:rand(),name:get('name'),description:get('description'),coins:Number(get('coins'))});closeModal();await updateConfig(c)}
  else if(form.id==='autonomy-form'){const c=cloneConfig();c.rankMode=Number(get('rankMode'));closeModal();await updateConfig(c)}
+ else if(form.id==='coin-adjust-form'){
+  const delta=Number(get('delta'));
+  if(!Number.isInteger(delta)||delta===0||Math.abs(delta)>10000)throw Error('Entre −10 000 et +10 000 pièces.');
+  const result=await call('/coins/adjust','POST',{delta,reason:get('reason'),pin:get('pin')});
+  closeModal();await refresh(true);
+  toast((result.adjustment.delta>0?'🪙 +':'🪙 ')+result.adjustment.delta+' pièce(s) · Solde '+result.adjustment.balance);
+ }
  else if(form.id==='penalty-form'){if(!confirm('Appliquer réellement cette pénalité en pièces ?'))return;const r=await call('/penalty','POST',{taskId:get('taskId'),day:get('day'),coins:Number(get('coins'))});closeModal();await refresh(true);toast(`Retrait confirmé : ${r.deducted} pièce(s)`)}
  }catch(e){toast('Erreur : '+e.message)}}
 async function bootstrap(){

@@ -191,3 +191,42 @@ Pour les blocs de devoirs, les gains s'appuient sur le volume réellement termin
 L'écran de préparation n'utilise plus les paragraphes « maximum possible » et « plafond parental » : il présente **quatre rangées compactes** (100 %, 75 %, 50 %, 25 % de l'objectif choisi), chacune avec le **temps**, une **barre de gain**, les **XP** et les **pièces**. Modifier la durée avec les boutons +/- ou le clavier recalcule toutes les prévisions en direct ; changer les devoirs sélectionnés les recalcule également.
 
 La durée choisie est verrouillée au lancement du bloc ; la récompense réelle est calculée à la fin avec la durée réellement écoulée et le nombre de devoirs réellement terminés, avec validation parentale selon la configuration de la mission de devoirs.
+
+
+## NEXT MOVE 5.0 — Économie parentale, progression et arcade
+
+### Version visible et cadeaux triés
+
+Le numéro **v5.0.0** est affiché dans l'en-tête de l'application. Les cadeaux sont présentés **par coût croissant en pièces** dans l'espace Mahé et l'éditeur parental.
+
+### Bonus et malus en pièces, avec PIN
+
+- Depuis **Bilan parental** et **Réglages > Gestion des pièces**, le parent peut donner ou reprendre des pièces à tout moment, avec un montant signé (+/−), un motif facultatif et **nouvelle saisie de son code PIN à quatre chiffres**. Les retraits ne créent jamais un solde négatif. Chaque opération est enregistrée dans l'historique des pièces (montant demandé, réellement appliqué, raison, date et solde).
+- Lors d'une **validation de mission**, le parent peut ajouter un **bonus ou malus de −500 à +500 pièces**, indépendamment du barème automatique. Il saisit son PIN dans la même fenêtre de validation et peut ajouter un motif. Un bonus positif ne peut pas être attribué à une mission refusée. Une mission ne peut pas être validée deux fois.
+
+### Boutique : mini-jeu surprise, débloqué une seule fois
+
+Un cadeau **🕹️ Mini-jeu surprise** (prix initial **140 pièces**, éditable par le parent) est ajouté automatiquement aux installations existantes, **sans effacer les cadeaux déjà configurés**. Mahé le demande depuis **Cadeaux**. Le parent valide avec son PIN, à condition que les pièces soient suffisantes. Alors seulement, le coût est débité et **un mini-jeu encore non possédé est tiré au hasard**. Il n'y a pas de doublon et le cadeau cesse d'être disponible une fois les dix jeux obtenus. Un refus ne retire pas de pièces et ne débloque rien.
+
+Les dix jeux, jouables **hors ligne dans 🏆 Défis > Mini-jeux** avec contrôles tactiles et bouton Rejouer :
+
+1. 🐍 Snake
+2. 🏓 Pong
+3. 🧱 Casse-briques
+4. 🧩 Blocs (type Tetris)
+5. 🔢 2048
+6. 💣 Démineur
+7. 🃏 Memory
+8. 🎵 Simon
+9. 🐹 Tape-taupe
+10. ⭕ Morpion
+
+Les mini-jeux ne procurent aucun XP ni pièce supplémentaire : ils sont une récompense de loisir, et non un moyen de gagner davantage. Ils ne nécessitent aucune connexion, publicité ou bibliothèque externe. Les jeux débloqués sont conservés dans les sauvegardes JSON. La remise à zéro des progrès supprime les déblocages, mais pas les missions personnalisées lorsque le parent choisit de les conserver.
+
+### Enrichissement des niveaux et des défis
+
+- **17 nouveaux objectifs progressifs** : missions validées, ponctualité, respect du chrono, blocs de devoirs, travail anticipé, initiatives spontanées et jours actifs. Chacun attribue des XP et des pièces **une seule fois après franchissement du seuil** ; les objectifs s'échelonnent des premières réussites à des performances durables.
+- Plus de personnalisation à débloquer avec les niveaux : **42 avatars**, **23 cadres**, **33 titres**, **15 médailles** et **12 animations**.
+- **5 effets spéciaux supplémentaires** se débloquent uniquement à la réussite des défis correspondants. Les effets sont sélectionnables dans le Profil, avec une option sans animation et respect du réglage système « Réduire les animations ».
+
+La progression, les jeux et les historiques de pièces sont désormais inclus dans les exports/imports. Le stockage reste local au navigateur : le code PIN sécurise l'interface habituelle, mais ne remplace pas une validation serveur contre un utilisateur sachant modifier les données locales.

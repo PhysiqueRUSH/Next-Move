@@ -710,7 +710,51 @@ const LEVEL_REWARDS={
  frame:[['neon',1,'Néon'],['plasma',3,'Plasma'],['ice',5,'Givre'],['ember',7,'Braises'],['matrix',9,'Matrix'],['legendary',10,'Légendaire'],['cosmic',12,'Cosmos'],['royal',15,'Royal'],['storm',18,'Tempête'],['diamond',21,'Diamant'],['gold',25,'Or'],['ultra',30,'Ultra']],
  title:[['Recrue',1,'Recrue'],['Explorateur',2,'Explorateur'],['Sprinter',3,'Sprinter'],['Éclaireur',4,'Éclaireur'],['Stratège',6,'Stratège'],['Pilote',7,'Pilote'],['Turbo',8,'Turbo'],['Maître du chrono',9,'Maître du chrono'],['Champion',10,'Champion'],['As de l’avance',11,'As de l’avance'],['Élite',12,'Élite'],['Implacable',13,'Implacable'],['Ninja du temps',14,'Ninja du temps'],['Légende',15,'Légende'],['Commandant',16,'Commandant'],['Maître des quêtes',18,'Maître des quêtes'],['Invincible',20,'Invincible'],['Architecte du temps',22,'Architecte du temps'],['Supernova',24,'Supernova'],['Virtuose',26,'Virtuose'],['Grand stratège',28,'Grand stratège'],['Boss final',30,'Boss final']]
 };
-const LEVEL_MILESTONES=[[2,'🎯','Premiers pas'],[3,'⚡','Départ fulgurant'],[5,'🥉','Bronze'],[7,'🚀','Décollage'],[10,'🥈','Argent'],[12,'💎','Diamant'],[15,'🥇','Or'],[20,'🏆','Champion'],[25,'🌟','Superstar'],[30,'🐉','Légende'],[40,'👑','Mythique']];
+
+LEVEL_REWARDS.avatar.push(
+ ['🦖',32,'Dinosaure'],['🦸',34,'Héros'],['🥋',36,'Judoka'],['🦉',38,'Hibou'],['🦂',40,'Scorpion'],
+ ['🐙',42,'Kraken'],['🦋',44,'Papillon'],['🏹',46,'Archer'],['🚁',48,'Hélicoptère'],
+ ['🪄',50,'Magicien'],['🛡️',52,'Gardien'],['👽',54,'Alien'],['🧿',56,'Mystère'],['🦚',58,'Phénix'],['🌋',60,'Volcan']
+);
+LEVEL_REWARDS.frame.push(
+ ['ruby',32,'Rubis'],['emerald',34,'Émeraude'],['electric',36,'Électrique'],['shadow',38,'Ombre'],
+ ['nebula',40,'Nébuleuse'],['solar',43,'Solaire'],['opal',46,'Opale'],['flame',49,'Flamme'],
+ ['prismatic',52,'Prisme'],['champion',55,'Champion'],['legend',60,'Mythique']
+);
+LEVEL_REWARDS.title.push(
+ ['Étoile montante',32,'Étoile montante'],['As du temps',34,'As du temps'],['Maître des missions',36,'Maître des missions'],
+ ['Gardien du planning',38,'Gardien du planning'],['Énergie infinie',40,'Énergie infinie'],['Agent secret',43,'Agent secret'],
+ ['Expert des devoirs',46,'Expert des devoirs'],['Héros quotidien',49,'Héros quotidien'],
+ ['Commandant suprême',52,'Commandant suprême'],['Légende vivante',55,'Légende vivante'],['Champion cosmique',60,'Champion cosmique']
+);
+LEVEL_REWARDS.effect=[
+ ['none',1,'Classique'],['pulse',3,'Pulsation'],['neon',5,'Néon'],['aurora',8,'Aurore'],
+ ['glimmer',11,'Scintillant'],['comet',14,'Comète'],['rainbow',18,'Arc-en-ciel'],
+ ['starlight',23,'Étoiles'],['cyber',28,'Cyber'],['hologram',34,'Hologramme'],['meteor',40,'Météore'],['champion',50,'Légende']
+];
+const CHALLENGE_EFFECTS=[
+ ['hero','first40','Héros des missions'],
+ ['scholar','hw15','Érudit'],
+ ['lightning','punctual50','Éclair parfait'],
+ ['sparkles','spont100','100 initiatives'],
+ ['master','days7','Série des champions']
+];
+function effectOptions(){
+ const earned=data.achievementAwards||[];
+ return [...LEVEL_REWARDS.effect,...CHALLENGE_EFFECTS.map(([id,ach,title])=>[id,0,title,ach])]
+  .filter(row=>!row[3]||earned.some(a=>a.id===row[3]));
+}
+function renderVisualEffects(){
+ const lvl=levelInfo(data.wallet.xp).n,items=effectOptions(),active=data.config.effect||'none';
+ return `<details class="level-reward-panel"><summary><span>✨ Animations</span><span>${items.filter(x=>!x[1]||x[1]<=lvl).length} / ${items.length} ▾</span></summary>
+  <div class="level-reward-grid">${items.map(([id,need,title,ach])=>
+   `<button class="level-reward-option ${active===id?'selected':''}" data-action="effect" data-id="${id}" ${need>lvl?'disabled':''}>
+    <span class="level-reward-icon">✨</span><strong>${escape(title)}</strong><small>${need>lvl?'🔒 Niveau '+need:ach?'🏆 Défi':'✓ Disponible'}</small>
+   </button>`).join('')}
+  </div></details>`;
+}
+
+const LEVEL_MILESTONES=[[2,'🎯','Premiers pas'],[3,'⚡','Départ fulgurant'],[5,'🥉','Bronze'],[7,'🚀','Décollage'],[10,'🥈','Argent'],[12,'💎','Diamant'],[15,'🥇','Or'],[20,'🏆','Champion'],[25,'🌟','Superstar'],[30,'🐉','Légende'],[40,'👑','Mythique'],[45,'🌌','Interstellaire'],[50,'🥋','Maître'],[55,'🎖️','Vétéran'],[60,'💫','Éternel']];
 function renderLevelRewards(kind,label){
  const lvl=levelInfo(data.wallet.xp).n,items=LEVEL_REWARDS[kind],won=items.filter(x=>x[1]<=lvl).length,active=String(data.config[kind]||'');
  return `<details class="level-reward-panel"><summary><span>${label}</span><span>${won}/${items.length} débloqués ▾</span></summary>
@@ -733,6 +777,7 @@ function renderProfile(){
  ${renderLevelRewards('avatar','👾 Avatars')}
  ${renderLevelRewards('frame','💠 Cadres')}
  ${renderLevelRewards('title','🏷️ Titres')}
+ ${renderVisualEffects()}
  <details class="level-reward-panel"><summary><span>🏅 Médailles</span><span>${LEVEL_MILESTONES.filter(x=>x[0]<=lvl.n).length}/${LEVEL_MILESTONES.length} ▾</span></summary><div class="level-reward-grid">
  ${LEVEL_MILESTONES.map(([need,icon,title])=>`<div class="level-reward-option ${lvl.n>=need?'selected':''}"><span class="level-reward-icon">${icon}</span><strong>${title}</strong><small>${lvl.n>=need?'✓ Gagnée':'🔒 Niveau '+need}</small></div>`).join('')}
  </div></details>
@@ -1013,8 +1058,9 @@ async function demoCall(path,method,body){let result={ok:true};
  else if(path==='/xp/convert'){throw Error('La conversion des XP en pièces a été supprimée.');}
  else if(path==='/plan/set'){const i=db.plans.findIndex(x=>x.day===body.day);const plan={day:body.day,plan_json:JSON.stringify(body.plan)};if(i>=0)db.plans[i]=plan;else db.plans.push(plan)}
  else if(path==='/customize'){
-  const options=LEVEL_REWARDS[body.kind],selected=options?.find(x=>x[0]===body.value);
-  if(!selected||levelInfo(db.wallet.xp).n<selected[1])throw Error('Pas encore débloqué');
+  const options=body.kind==='effect'?effectOptions():LEVEL_REWARDS[body.kind],selected=options?.find(x=>x[0]===body.value);
+  if(!selected||levelInfo(db.wallet.xp).n<selected[1]||selected[3]&&!(db.achievementAwards||[]).some(a=>a.id===selected[3]))
+   throw Error('Pas encore débloqué');
   db.config[body.kind]=body.value;
  }
  else if(path==='/homework'){const hw={id:'hw-'+rand(),parent_uid:'demo',subject:body.subject,estimate:body.estimate,day:body.day,details:body.details,due:body.due,done:0};db.homework.push(hw);result.id=hw.id;}
@@ -1317,6 +1363,7 @@ const actions={
  'avatar':async(_,el)=>{try{await call('/customize','POST',{kind:'avatar',value:el.dataset.id});await refresh(true);toast('Avatar sélectionné !')}catch(e){toast(e.message)}},
  'frame':async(_,el)=>{try{await call('/customize','POST',{kind:'frame',value:el.dataset.id});await refresh(true);toast('Cadre sélectionné !')}catch(e){toast(e.message)}},
  'title':async(_,el)=>{try{await call('/customize','POST',{kind:'title',value:el.dataset.id});await refresh(true);toast('Titre sélectionné !')}catch(e){toast(e.message)}},
+ 'effect':async(_,el)=>{try{await call('/customize','POST',{kind:'effect',value:el.dataset.id});await refresh(true);toast('✨ Nouvel effet activé !')}catch(e){toast(e.message)}},
  'notify':()=>requestNotifications()
 };
 function modalApproveRun(id){

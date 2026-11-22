@@ -59,3 +59,32 @@
 @media(min-width:540px){.nm-arcade-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:400px){.arcade-tile{height:58px;font-size:18px}.arcade-simon button{font-size:40px}.arcade-btn{min-width:46px}}
 @media(prefers-reduced-motion:reduce){.nm-effect-pulse .mark-icon,.nm-effect-aurora .header,.nm-effect-comet .mark-icon{animation:none}}
+
+/* Visual effects earned from XP levels and validated achievements */
+.frame-ruby{box-shadow:0 0 20px #f76b9b,0 0 8px #ffabc5 inset!important}
+.frame-emerald{box-shadow:0 0 24px #4eff9b,0 0 10px #b8ffe5 inset!important}
+.frame-electric{box-shadow:0 0 26px #69daff,0 0 13px #caeeff inset!important}
+.frame-shadow{box-shadow:0 0 20px #a59cc9,0 0 12px #63509b inset!important}
+.frame-nebula{box-shadow:0 0 23px #b183f7,0 0 15px #9ce3ff inset!important}
+.frame-solar{box-shadow:0 0 25px #fbd25a,0 0 12px #fffead inset!important}
+.frame-opal{box-shadow:0 0 23px #a6ebdf,0 0 13px #debcff inset!important}
+.frame-flame{box-shadow:0 0 27px #fb845e,0 0 16px #f8d177 inset!important}
+.frame-prismatic{box-shadow:0 0 24px #7ce8fa,0 0 11px #ce8afb inset!important}
+.frame-champion{box-shadow:0 0 30px #ffe2a0,0 0 17px #fff5d1 inset!important}
+.frame-legend{box-shadow:0 0 30px #aa8aff,0 0 20px #d8fff9 inset!important}
+.nm-achievements-section{margin:15px 0}
+.nm-achievements-group{margin-top:9px;border:1px solid #3a5776;background:#15283d;border-radius:13px;overflow:hidden}
+.nm-achievements-group summary{display:flex;justify-content:space-between;padding:12px;font-size:14px;font-weight:850;cursor:pointer;color:#e5f7ff;list-style:none}
+.nm-achievements-group summary span{font-size:11px;color:#92ecd9}
+.nm-achievement{padding:11px 12px;border-top:1px solid #2b4863}
+.nm-achievement strong{font-size:12px}
+.nm-achievement small{font-size:11px;color:#adf8de}
+.nm-achievement p{font-size:11px;color:#d7c48a;margin:6px 0}
+.nm-achievement .progress{height:6px}
+.nm-effect-hero .mark-icon{border:2px solid #ffca8f;box-shadow:0 0 20px #f9ce8b}
+.nm-effect-scholar .mark-icon{border:2px solid #b2a2fc;box-shadow:0 0 21px #a3a0ff}
+.nm-effect-lightning .header{box-shadow:inset 0 0 28px #60e4ff66}
+.nm-effect-sparkles .brand{animation:nm-sparkle 2s ease-in-out infinite;color:#d8fff3}
+.nm-effect-master .header{background:linear-gradient(90deg,#173145,#283963,#1d483c);border-bottom:2px solid #ffe3ab}
+@keyframes nm-sparkle{50%{filter:brightness(1.6);text-shadow:0 0 22px #c4fff3}}
+@media(prefers-reduced-motion:reduce){.nm-effect-sparkles .brand{animation:none}}

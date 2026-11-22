@@ -38,10 +38,10 @@ const ARCADE_GAMES=[
 ];
 function availableArcadeGames(games=db.unlockedGames){return ARCADE_GAMES.filter(g=>!(games||[]).includes(g.id));}
 function arcadeReward(r){return r?.id==='arcade-random'||r?.kind==='arcade';}
-function sortedRewards(){return [...(data.config.rewards||[])].sort((a,b)=>Number(a.cost||0)-Number(b.cost||0)||a.name.localeCompare(b.name,'fr'));}
+function sortedRewards(){return [...(data.config.rewards||[])].sort((a,b)=>Number(a.cost||0)-Number(b.cost||0)||String(a.name||'').localeCompare(String(b.name||''),'fr'));}
 const task=(id,title,category,time,minutes,days=[1,2,3,4,5],options={})=>({id,title,category,time,minutes,maxMinutes:Math.min(240,minutes+Math.max(5,Math.ceil(minutes*.5))),hasTimeLimit:true,scheduleMode:'fixed',spontaneous:false,xpMax:45,coinsMax:15,days,modes:['school'],validation:'self',priority:2,carry:'expire',notify:true,enabled:true,locked:false,steps:[],...options});
 function defaultConfig(enable=false){return {
- version:1,childName:'Mahé',categories:[...CATEGORY],avatar:'🚀',frame:'neon',title:'Recrue',xpName:'XP',parentPinHint:'',pronoteUrl:cfg.pronoteUrl||'',
+ version:5,childName:'Mahé',categories:[...CATEGORY],avatar:'🚀',frame:'neon',effect:'none',title:'Recrue',xpName:'XP',parentPinHint:'',pronoteUrl:cfg.pronoteUrl||'',
  tasks:[
   task('wake','Mission décollage',0,'06:25',10,[1,2,3,4,5],{steps:['Me lever','Faire mon lit'],enabled:enable,priority:1}),
   task('ready','Habillage + dents',0,'06:40',18,[1,2,3,4,5],{steps:['M’habiller','Me laver le visage','Me brosser les dents'],enabled:enable,priority:1}),
@@ -58,7 +58,8 @@ function defaultConfig(enable=false){return {
   {id:'outing',name:'Sortie spéciale',cost:350,icon:'🎟️',active:true},
   {id:'gift',name:'Petit cadeau',cost:220,icon:'🎁',active:true},
   {id:'pocket',name:'Bon d’achat / argent de poche',cost:250,icon:'💳',active:true},
-  {id:'privilege',name:'Privilège surprise',cost:160,icon:'🌟',active:true}
+  {id:'privilege',name:'Privilège surprise',cost:160,icon:'🌟',active:true},
+  {id:'arcade-random',name:'Mini-jeu surprise',cost:140,icon:'🕹️',kind:'arcade',active:true}
  ],
  quiet:[
   {id:'quiet-school',start:'07:30',end:'17:05',days:[1,2,3,4,5],modes:['school']},
@@ -1444,7 +1445,7 @@ function resetState(mode){
  if(!['progress','all'].includes(mode))throw Error('Mode de remise à zéro invalide');
  const config=mode==='all'?{...defaultConfig(false),tasks:[]}:JSON.parse(JSON.stringify(db.config));
  config.avatar='🚀';config.frame='neon';config.title='Recrue';
- db={config,runs:[],ledger:[],wallet:{xp:0,coins:0,xpBank:0},exchanges:[],spontaneousAwards:[],requests:[],homework:[],homeworkDates:[],homeworkBlocks:[],plans:[],claimedLevels:[1],role:'child'};
+ db={config,runs:[],ledger:[],wallet:{xp:0,coins:0,xpBank:0},exchanges:[],spontaneousAwards:[],achievementAwards:[],unlockedGames:[],coinLedger:[],requests:[],homework:[],homeworkDates:[],homeworkBlocks:[],plans:[],claimedLevels:[1],role:'child'};
  saveDemo();
  for(const key of ['nm_offline_runs','nm_offline_running','nm_state_cache'])localStorage.removeItem(key);
  for(let n=localStorage.length-1;n>=0;n--){
@@ -1481,7 +1482,7 @@ async function restoreBackup(file){
   const x=JSON.parse(await file.text()),d=x?.data;
   if(!d||!d.config||!Array.isArray(d.config.tasks)||!Array.isArray(d.config.rewards)||!Array.isArray(d.runs)||!Array.isArray(d.requests)||!d.wallet||!Array.isArray(d.homework)||!Array.isArray(d.plans))throw Error('Fichier NEXT MOVE non reconnu');
   if(!confirm('Restaurer cette sauvegarde remplacera TOUTES les données actuelles de NEXT MOVE sur ce téléphone. Continuer ?'))return;
-  db={config:d.config,runs:d.runs,ledger:Array.isArray(d.ledger)?d.ledger:[],wallet:{...d.wallet,xpBank:Number.isFinite(d.wallet.xpBank)?d.wallet.xpBank:Math.max(0,Number(d.wallet.xp)||0)},exchanges:Array.isArray(d.exchanges)?d.exchanges:[],requests:d.requests,homework:d.homework,plans:d.plans,homeworkDates:Array.isArray(d.homeworkDates)?d.homeworkDates:[],homeworkBlocks:Array.isArray(d.homeworkBlocks)?d.homeworkBlocks:[],spontaneousAwards:Array.isArray(d.spontaneousAwards)?d.spontaneousAwards:[],claimedLevels:Array.isArray(d.claimedLevels)?d.claimedLevels:Array.from({length:levelInfo(d.wallet.xp).n},(_,i)=>i+1),role:'child'};
+  db={config:d.config,runs:d.runs,ledger:Array.isArray(d.ledger)?d.ledger:[],wallet:{...d.wallet,xpBank:Number.isFinite(d.wallet.xpBank)?d.wallet.xpBank:Math.max(0,Number(d.wallet.xp)||0)},exchanges:Array.isArray(d.exchanges)?d.exchanges:[],requests:d.requests,homework:d.homework,plans:d.plans,homeworkDates:Array.isArray(d.homeworkDates)?d.homeworkDates:[],homeworkBlocks:Array.isArray(d.homeworkBlocks)?d.homeworkBlocks:[],spontaneousAwards:Array.isArray(d.spontaneousAwards)?d.spontaneousAwards:[],achievementAwards:Array.isArray(d.achievementAwards)?d.achievementAwards:[],unlockedGames:Array.isArray(d.unlockedGames)?d.unlockedGames.filter(x=>ARCADE_GAMES.some(g=>g.id===x)):[],coinLedger:Array.isArray(d.coinLedger)?d.coinLedger:[],claimedLevels:Array.isArray(d.claimedLevels)?d.claimedLevels:Array.from({length:levelInfo(d.wallet.xp).n},(_,i)=>i+1),role:'child'};
   saveDemo();data={...db};role='child';pinUnlocked=false;tab='planning';render();toast('✅ Sauvegarde restaurée.');
  }catch(e){toast('Import impossible : '+e.message)}
 }

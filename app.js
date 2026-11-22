@@ -1,5 +1,6 @@
 /* NEXT MOVE · PWA locale pour Mahé, interface simplifiée */
 (()=>{'use strict';
+const APP_VERSION='5.0.0';
 const cfg=globalThis.NEXT_MOVE_CONFIG||{};
 const connected=false; // Mode autonome : aucun service distant nécessaire.
 const $=s=>document.querySelector(s);
@@ -23,6 +24,21 @@ const SPONTANEOUS_DEFAULTS=[
  {id:'streak3',label:'Trois jours d’affilée',icon:'🔥',period:'streak',target:3,xp:30,coins:10},
  {id:'streak7',label:'Une semaine régulière',icon:'🏆',period:'streak',target:7,xp:100,coins:30}
 ];
+const ARCADE_GAMES=[
+ {id:'snake',name:'Snake',icon:'🐍',genre:'Arcade'},
+ {id:'pong',name:'Pong',icon:'🏓',genre:'Arcade'},
+ {id:'breakout',name:'Casse-briques',icon:'🧱',genre:'Arcade'},
+ {id:'tetris',name:'Blocs',icon:'🧩',genre:'Réflexion'},
+ {id:'2048',name:'2048',icon:'🔢',genre:'Réflexion'},
+ {id:'mines',name:'Démineur',icon:'💣',genre:'Réflexion'},
+ {id:'memory',name:'Memory',icon:'🃏',genre:'Mémoire'},
+ {id:'simon',name:'Simon',icon:'🎵',genre:'Mémoire'},
+ {id:'whack',name:'Tape-taupe',icon:'🐹',genre:'Réflexes'},
+ {id:'tictactoe',name:'Morpion',icon:'⭕',genre:'Réflexion'}
+];
+function availableArcadeGames(games=db.unlockedGames){return ARCADE_GAMES.filter(g=>!(games||[]).includes(g.id));}
+function arcadeReward(r){return r?.id==='arcade-random'||r?.kind==='arcade';}
+function sortedRewards(){return [...(data.config.rewards||[])].sort((a,b)=>Number(a.cost||0)-Number(b.cost||0)||a.name.localeCompare(b.name,'fr'));}
 const task=(id,title,category,time,minutes,days=[1,2,3,4,5],options={})=>({id,title,category,time,minutes,maxMinutes:Math.min(240,minutes+Math.max(5,Math.ceil(minutes*.5))),hasTimeLimit:true,scheduleMode:'fixed',spontaneous:false,xpMax:45,coinsMax:15,days,modes:['school'],validation:'self',priority:2,carry:'expire',notify:true,enabled:true,locked:false,steps:[],...options});
 function defaultConfig(enable=false){return {
  version:1,childName:'Mahé',categories:[...CATEGORY],avatar:'🚀',frame:'neon',title:'Recrue',xpName:'XP',parentPinHint:'',pronoteUrl:cfg.pronoteUrl||'',
@@ -57,9 +73,18 @@ let db=JSON.parse(localStorage.getItem(demoKey)||'null')||{config:defaultConfig(
 db.homeworkDates=Array.isArray(db.homeworkDates)?db.homeworkDates:[];
 db.homeworkBlocks=Array.isArray(db.homeworkBlocks)?db.homeworkBlocks:[];
 db.spontaneousAwards=Array.isArray(db.spontaneousAwards)?db.spontaneousAwards:[];
+db.unlockedGames=Array.isArray(db.unlockedGames)?db.unlockedGames.filter(x=>ARCADE_GAMES.some(g=>g.id===x)):[];
+db.coinLedger=Array.isArray(db.coinLedger)?db.coinLedger:[];
+db.achievementAwards=Array.isArray(db.achievementAwards)?db.achievementAwards:[];
 db.wallet=db.wallet||{xp:0,coins:0};
 if(!Number.isFinite(db.wallet.xpBank))db.wallet.xpBank=Math.max(0,Number(db.wallet.xp)||0);
 db.exchanges=Array.isArray(db.exchanges)?db.exchanges:[];
+const arcadeMigrationKey='nextmove_arcade_reward_v5';
+if(!localStorage.getItem(arcadeMigrationKey)){
+ if(!db.config.rewards.some(r=>arcadeReward(r)))db.config.rewards.push({id:'arcade-random',name:'Mini-jeu surprise',icon:'🕹️',cost:140,kind:'arcade',active:true});
+ localStorage.setItem(arcadeMigrationKey,'1');saveDemoMigration();
+}
+function saveDemoMigration(){localStorage.setItem(demoKey,JSON.stringify(db));}
 const malusMigrationKey='nextmove_malus_migrated_v1';
 if(!localStorage.getItem(malusMigrationKey)){
  if(db.config?.overrunPolicy==='none')db.config.overrunPolicy='propose';
@@ -68,7 +93,7 @@ if(!localStorage.getItem(malusMigrationKey)){
 }
 db.claimedLevels=Array.isArray(db.claimedLevels)?db.claimedLevels:Array.from({length:levelInfo(Number(db.wallet?.xp)||0).n},(_,i)=>i+1);
 const saveDemo=()=>localStorage.setItem(demoKey,JSON.stringify(db));
-let data={role:'child',config:defaultConfig(false),wallet:{xp:0,coins:0,xpBank:0},exchanges:[],runs:[],requests:[],homework:[],ledger:[],plans:[],paired:false};
+let data={role:'child',config:defaultConfig(false),wallet:{xp:0,coins:0,xpBank:0},exchanges:[],unlockedGames:[],coinLedger:[],achievementAwards:[],runs:[],requests:[],homework:[],ledger:[],plans:[],paired:false};
 let homeworkDraft={items:{},estimate:20,manualEstimate:false};
 let auth=null,uid=null,role='child',tab='planning',adminTab='stats',pinUnlocked=false,activeDay=dayNow(),selectedRecord=null,online=!!navigator.onLine,serviceWorker=null,initDone=false,renderVersion=0;
 const pinKey='nextmove_parent_pin_v1';
@@ -368,10 +393,10 @@ function render(){if(!initDone)return;
  const lev=levelInfo(data.wallet.xp),isParent=role==='parent';
  const nav=isParent?[['stats','📊','Bilan'],['tasks','🎯','Missions'],['calendar','📅','Planning'],['rewards','🪙','Boutique'],['settings','⚙️','Réglages']]:[['planning','🎯','Missions'],['challenges','🏆','Défis'],['shop','🎁','Cadeaux']];
  const current=isParent?adminTab:tab;
- const header=`<div class="header"><div class="mark"><div class="mark-icon">ϟ</div><div><div class="brand">NEXT MOVE</div></div></div><div class="header-actions">${isParent?'<button class="iconbtn" data-action="switch-child" aria-label="Retour à Mahé" title="Retour">↩</button>':`<button class="iconbtn nm-avatar-button" data-action="tab" data-id="profile" aria-label="Mon profil" title="Mon profil">${escape(data.config.avatar||'🚀')}</button><button class="iconbtn" data-action="parent-entry" aria-label="Réglages parentaux" title="Réglages parentaux">⚙️</button>`}</div></div>`;
+ const header=`<div class="header"><div class="mark"><div class="mark-icon">ϟ</div><div><div class="brand">NEXT MOVE <span class="nm-version">v${APP_VERSION}</span></div></div></div><div class="header-actions">${isParent?'<button class="iconbtn" data-action="switch-child" aria-label="Retour à Mahé" title="Retour">↩</button>':`<button class="iconbtn nm-avatar-button" data-action="tab" data-id="profile" aria-label="Mon profil" title="Mon profil">${escape(data.config.avatar||'🚀')}</button><button class="iconbtn" data-action="parent-entry" aria-label="Réglages parentaux" title="Réglages parentaux">⚙️</button>`}</div></div>`;
  const demo='';
  const page=isParent?renderAdmin():renderChild();
- $('#app').innerHTML=`<main class="app ${isParent?'parent-app':'child-app'}">${header}${demo}${page}</main><nav class="tabs" aria-label="Navigation">${nav.map(([key,icon,label])=>`<button data-action="tab" data-id="${key}" class="${current===key?'active':''}"><span>${icon}</span>${label}</button>`).join('')}</nav>`;
+ $('#app').innerHTML=`<main class="app ${isParent?'parent-app':'child-app'} nm-effect-${escape(data.config.effect||'none')}">${header}${demo}${page}</main><nav class="tabs" aria-label="Navigation">${nav.map(([key,icon,label])=>`<button data-action="tab" data-id="${key}" class="${current===key?'active':''}"><span>${icon}</span>${label}</button>`).join('')}</nav>`;
  window.scrollTo({top:scroll,behavior:'instant'});clockTick();
 }
 function renderChild(){switch(tab){case 'homework':return renderHomework();case 'challenges':return renderChallenges();case 'shop':return renderShop();case 'profile':return renderProfile();case 'parent-settings':return renderParentAccess();default:return renderPlanning();}}

@@ -11,6 +11,7 @@ jobs:
       - name: Check JavaScript syntax
         run: |
           node --check app.js
+          node --check mini-games.js
           node --check sw.js
           node --check config.js
       - name: Check required PWA files
@@ -21,7 +22,11 @@ jobs:
           test -f styles.css
           test -f homework.css
           test -f progression.css
+          test -f mini-games.css
+          test -f mini-games.js
           grep -q 'homework.css' index.html
+          grep -q 'mini-games.js' index.html
+          grep -q 'mini-games.css' index.html
           grep -q 'ui.css' index.html
           ! grep -q 'MODE DÉMONSTRATION' app.js
       - name: Verify homework block behaviour
@@ -30,3 +35,5 @@ jobs:
         run: node tests/speed-and-reset.test.cjs
       - name: Verify spontaneous missions and recurring challenges
         run: node tests/spontaneous.test.cjs
+      - name: Verify v5 arcade, parent coin adjustments and achievements
+        run: node tests/arcade-and-rewards.test.cjs

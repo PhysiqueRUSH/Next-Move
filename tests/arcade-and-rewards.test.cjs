@@ -124,7 +124,7 @@ async function main(){
  const arcade=gameEnv.NEXT_MOVE_ARCADE;
  assert.ok(arcade&&typeof arcade.mount==='function');
  assert.equal(arcade.games.length,10);
- assert.deepEqual(arcade.games.map(g=>g.id),t.ARCADE_GAMES.map(g=>g.id),'Catalogue and engines consistent');
+ assert.equal(JSON.stringify(arcade.games.map(g=>g.id)),JSON.stringify(t.ARCADE_GAMES.map(g=>g.id)),'Catalogue and engines consistent');
  for(const game of arcade.games){arcade.mount(game.id,node());arcade.stop();}
  assert.equal(timerIds.size,0,'Game intervals and delays cleaned up on close');
  console.log('Ten playable game engines mount and clean up: PASSED');

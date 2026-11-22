@@ -1080,6 +1080,7 @@ async function demoCall(path,method,body){let result={ok:true};
  else if(path==='/reward/resolve'){
   const r=db.requests.find(x=>x.id===body.requestId&&x.status==='pending');
   if(!r)throw Error('Demande déjà traitée.');
+  await verifyParentPin(body.pin);
   if(body.approve){
    if(db.wallet.coins<r.cost)throw Error('Pièces insuffisantes pour ce cadeau.');
    const award= r.kind==='arcade'||r.reward_id==='arcade-random'?selectRandomAvailableGame():null;
@@ -1333,8 +1334,8 @@ const actions={
  'request-reward':async(_,el)=>{if(!confirm('Demander cette récompense au parent ?'))return;try{await call('/reward/request','POST',{rewardId:el.dataset.id});await refresh(true);toast('🎁 Demande envoyée !')}catch(e){toast(e.message)}},
  'approve':(_,el)=>resolveRun(el.dataset.id,true),
  'reject':(_,el)=>resolveRun(el.dataset.id,false),
- 'reward-approve':(_,el)=>resolveReward(el.dataset.id,true),
- 'reward-reject':(_,el)=>resolveReward(el.dataset.id,false),
+ 'reward-approve':(_,el)=>modalRewardDecision(el.dataset.id,true),
+ 'reward-reject':(_,el)=>modalRewardDecision(el.dataset.id,false),
  'add-period':()=>openModal(`<h2>📆 Ajouter une période</h2><form id="period-form">${field('Nom (ex. vacances d’hiver)','name','text','','required')}${field('Du','start','date',dayNow(),'required')}${field('Au','end','date',futureDays(7),'required')}${selectField('Mode','mode',[['vacation','Vacances'],['school','École'],['weekend','Week-end']], 'vacation')}<button class="btn primary block">Ajouter</button></form>`),
  'del-period':async(_,el)=>{const c=cloneConfig();c.periods=c.periods.filter(x=>x.id!==el.dataset.id);await updateConfig(c)},
  'add-quiet':()=>openModal(`<h2>🔕 Plage de silence</h2><form id="quiet-form"><div class="form-grid">${field('Début','start','time','21:00','required')}${field('Fin','end','time','06:25','required')}</div><div class="field"><label>Jours</label>${dayChecks([0,1,2,3,4,5,6])}</div><div class="field"><label>Périodes</label>${modeChecks(['school','weekend','vacation'])}</div><button class="btn primary block">Ajouter</button></form>`),
@@ -1405,13 +1406,26 @@ async function resolvePenalty(id,approve){
  try{await call('/run/penalty-resolve','POST',{id,approve});await refresh(true);toast(approve?'Pénalité confirmée':'Pénalité annulée')}
  catch(e){toast('Erreur : '+e.message)}
 }
-async function resolveReward(requestId,approve){
+
+function modalRewardDecision(requestId,approve){
+ const request=(data.requests||[]).find(r=>r.id===requestId&&r.status==='pending');
+ if(!request)return toast('Demande déjà traitée.');
+ const reward=data.config.rewards.find(r=>r.id===request.reward_id);
+ openModal(`<h2>${approve?'🎁 Accorder':'❌ Refuser'} ce cadeau</h2>
+ <p class="nm-approve-title">${escape(reward?.name||'Récompense')}</p>
+ <p class="small muted">🪙 ${request.cost} pièces ${arcadeReward(reward)?'· mini-jeu surprise':''}</p>
+ <form id="reward-confirm-form" data-id="${escape(requestId)}" data-approve="${approve?'yes':'no'}">
+ ${field('Code PIN parental','pin','password','','inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required autocomplete="off"')}
+ <button class="btn primary block" type="submit">Confirmer</button></form>`);
+}
+async function resolveReward(requestId,approve,pin){
  try{
-  const response=await call('/reward/resolve','POST',{requestId,approve});
-  await refresh(true);
+  const response=await call('/reward/resolve','POST',{requestId,approve,pin});
+  closeModal();await refresh(true);
   toast(approve?(response.game?'🕹️ Nouveau jeu : '+response.game.name+' !':'🎁 Récompense accordée'):'Demande refusée');
  }catch(e){toast(e.message)}
 }
+
 function futureDate(s,n){const d=new Date(s+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)}
 
 function modalReset(){
@@ -1605,6 +1619,11 @@ async function onForm(event){const form=event.target;if(!form.id)return;event.pr
  else if(form.id==='exception-form'){const c=cloneConfig(),common={id:rand(),day:get('day')};c.exceptions.push(get('kind')==='hide'?{...common,hideTaskId:get('taskId')}:{...common,taskId:get('taskId'),changes:{time:get('time')}});closeModal();await updateConfig(c)}
  else if(form.id==='challenge-form'){const c=cloneConfig();c.customChallenges.push({id:rand(),name:get('name'),description:get('description'),coins:Number(get('coins'))});closeModal();await updateConfig(c)}
  else if(form.id==='autonomy-form'){const c=cloneConfig();c.rankMode=Number(get('rankMode'));closeModal();await updateConfig(c)}
+ else if(form.id==='reward-confirm-form'){
+  const pin=get('pin');
+  if(!/^\d{4}$/.test(pin))throw Error('Code PIN invalide');
+  await resolveReward(form.dataset.id,form.dataset.approve==='yes',pin);
+ }
  else if(form.id==='coin-adjust-form'){
   const delta=Number(get('delta'));
   if(!Number.isInteger(delta)||delta===0||Math.abs(delta)>10000)throw Error('Entre −10 000 et +10 000 pièces.');

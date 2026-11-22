@@ -575,10 +575,74 @@ function renderPlanning(){
  <details class="nm-planner-tools"><summary>⏱️ Je suis en retard</summary><p>Les heures fixes restent en place. Les missions libres se font quand tu veux.</p><button class="btn block" data-action="replan">Voir mes priorités</button><div id="replan-result"></div></details>`;
 }
 
+
+/* Objectifs récompensés une seule fois et réellement liés à l'autonomie. */
+const ACHIEVEMENTS=[
+ {id:'first5',icon:'🌱',name:'Premier élan',kind:'all',target:5,xp:10,coins:3,category:'Départ'},
+ {id:'first15',icon:'🎯',name:'Bien lancé',kind:'all',target:15,xp:20,coins:6,category:'Départ'},
+ {id:'first40',icon:'🏁',name:'Coureur régulier',kind:'all',target:40,xp:45,coins:12,category:'Départ'},
+ {id:'first100',icon:'🏆',name:'Cent missions',kind:'all',target:100,xp:120,coins:35,category:'Départ'},
+ {id:'punctual5',icon:'⏰',name:'Ponctuel',kind:'punctual',target:5,xp:20,coins:6,category:'Autonomie'},
+ {id:'punctual20',icon:'⚡',name:'Toujours prêt',kind:'punctual',target:20,xp:55,coins:16,category:'Autonomie'},
+ {id:'punctual50',icon:'🦅',name:'Maître du départ',kind:'punctual',target:50,xp:100,coins:30,category:'Autonomie'},
+ {id:'fast8',icon:'🚀',name:'Rapide et efficace',kind:'onTime',target:8,xp:25,coins:8,category:'Autonomie'},
+ {id:'fast25',icon:'🏎️',name:'Roi du chrono',kind:'onTime',target:25,xp:70,coins:22,category:'Autonomie'},
+ {id:'hw5',icon:'📚',name:'Devoirs en main',kind:'homework',target:5,xp:30,coins:10,category:'Devoirs'},
+ {id:'hw15',icon:'🧠',name:'Champion des devoirs',kind:'homework',target:15,xp:80,coins:23,category:'Devoirs'},
+ {id:'ahead5',icon:'🔮',name:'Je prends de l’avance',kind:'ahead',target:5,xp:35,coins:12,category:'Devoirs'},
+ {id:'spont10',icon:'✨',name:'J’agis tout seul',kind:'spont',target:10,xp:24,coins:7,category:'Initiative'},
+ {id:'spont40',icon:'💪',name:'Toujours volontaire',kind:'spont',target:40,xp:65,coins:20,category:'Initiative'},
+ {id:'spont100',icon:'🌟',name:'Super autonome',kind:'spont',target:100,xp:140,coins:40,category:'Initiative'},
+ {id:'days3',icon:'🔥',name:'Trois jours actifs',kind:'days',target:3,xp:25,coins:8,category:'Régularité'},
+ {id:'days7',icon:'🌈',name:'Une belle semaine',kind:'days',target:7,xp:65,coins:20,category:'Régularité'}
+];
+function achievementProgress(rule){
+ const all=(db.runs||[]).filter(r=>r.status==='complete');
+ if(rule.kind==='all')return all.length;
+ if(rule.kind==='punctual')return all.filter(r=>r.spontaneous!==true&&r.schedule_mode==='fixed'&&Number(r.late_s)<60).length;
+ if(rule.kind==='onTime')return all.filter(r=>!r.spontaneous&&r.goal_reached===true).length;
+ if(rule.kind==='homework')return all.filter(r=>Array.isArray(r.homeworkActual)&&r.homeworkActual.length>0).length;
+ if(rule.kind==='ahead')return all.filter(r=>Array.isArray(r.homeworkActual)&&Number(r.homeworkAdvance)>0).length;
+ if(rule.kind==='spont')return all.filter(r=>r.spontaneous===true).length;
+ if(rule.kind==='days')return new Set(all.map(r=>r.day)).size;
+ return 0;
+}
+function awardAchievements(){
+ db.achievementAwards=Array.isArray(db.achievementAwards)?db.achievementAwards:[];
+ const awarded=[];
+ for(const a of ACHIEVEMENTS){
+  if(db.achievementAwards.some(x=>x.id===a.id)||achievementProgress(a)<a.target)continue;
+  db.achievementAwards.push({id:a.id,day:dayNow(),xp:a.xp,coins:a.coins,at:Date.now()});
+  creditXp(a.xp);db.wallet.coins+=a.coins;
+  awarded.push(a.name);
+ }
+ return awarded;
+}
+function challengeAchievementCards(){
+ const awards=data.achievementAwards||[];
+ const category=Array.from(new Set(ACHIEVEMENTS.map(x=>x.category)));
+ return category.map(group=>{
+  const items=ACHIEVEMENTS.filter(a=>a.category===group);
+  return `<details class="nm-achievements-group"><summary>${escape(group)} <span>${items.filter(x=>awards.some(y=>y.id===x.id)).length} / ${items.length}</span></summary>
+    ${items.map(a=>{
+     const progress=Math.min(a.target,achievementProgress(a));
+     const owned=awards.some(x=>x.id===a.id);
+     return `<div class="nm-achievement">
+      <div class="row between"><strong>${a.icon} ${escape(a.name)}</strong><small>${owned?'✓ Gagné':progress+' / '+a.target}</small></div>
+      <div class="progress"><span style="width:${Math.round(progress/a.target*100)}%"></span></div>
+      <p>+${a.xp} XP · +${a.coins} 🪙</p>
+     </div>`;
+    }).join('')}</details>`;
+ }).join('');
+}
+
 const badges=[['⚡','Démarrage éclair',()=>data.runs.some(r=>r.status==='complete'&&r.late_s===0)],['🎯','10 missions',()=>data.runs.filter(r=>r.status==='complete').length>=10],['🏆','50 missions',()=>data.runs.filter(r=>r.status==='complete').length>=50],['🚀','Niveau 5',()=>levelInfo(data.wallet.xp).n>=5],['💎','Niveau 10',()=>levelInfo(data.wallet.xp).n>=10],['⏱️','Chrono dompté',()=>data.runs.filter(r=>r.status==='complete'&&r.elapsed_s<=900).length>=5],['🧠','Autonomie',()=>data.runs.filter(r=>r.late_s===0&&r.status==='complete').length>=20],['📚','Érudit',()=>data.runs.filter(r=>r.task_id.startsWith('hw-')&&r.status==='complete').length>=5],['🔥','Persévérant',()=>data.runs.filter(r=>r.status==='complete').length>=30]];
 function renderChallenges(){const done=data.runs.filter(r=>r.status==='complete'),quick=done.filter(r=>r.elapsed_s<=(data.config.tasks.find(t=>t.id===r.task_id)?.minutes||15)*60),self=done.filter(r=>r.late_s===0);const goals=[{name:'Départ canon',desc:'Commence 3 missions sans retard',done:Math.min(self.length,3),max:3,icon:'⚡'},{name:'Sprint du champion',desc:'Termine 5 missions dans le chrono',done:Math.min(quick.length,5),max:5,icon:'⏱️'},{name:'Série gagnante',desc:'Accomplis 10 missions',done:Math.min(done.length,10),max:10,icon:'🔥'}];
  return `<div class="section-title"><h2>🏆 CENTRE DES DÉFIS</h2><span class="pill gold">${badges.filter(b=>b[2]()).length} trophées</span></div><div class="card"><h2>⚡ Défis automatiques</h2>${goals.map(g=>`<div style="margin:14px 0"><div class="row between"><strong>${g.icon} ${g.name}</strong><span class="small muted">${g.done}/${g.max}</span></div><p class="small muted" style="margin:5px 0">${g.desc}</p><div class="progress"><span style="width:${g.done/g.max*100}%"></span></div></div>`).join('')}</div>
 
+ <section class="card nm-achievements-section"><h2>✨ Défis à récompenses</h2>
+  ${challengeAchievementCards()}
+ </section>
  <section class="card nm-spontaneous-challenges"><h2>✨ Défis spontanés</h2>
   <p class="small muted">Réalise des missions spontanées plusieurs fois, ou reviens régulièrement. Les gains bonus sont versés automatiquement une seule fois par défi atteint.</p>
   ${spontaneousAwardsFor(dayNow()).map(g=>{
@@ -830,6 +894,7 @@ async function demoCall(path,method,body){let result={ok:true};
   if(!needsApproval){
    creditXp(cap.xp);db.wallet.coins+=cap.coins;
    result.bonus=awardSpontaneousChallenges(day);
+   result.achievements=awardAchievements();
    result.levelCoins=applyLevelRewards();
   }
  }
@@ -893,7 +958,8 @@ async function demoCall(path,method,body){let result={ok:true};
    if(r.status==='complete'){
     creditXp(r.xp);db.wallet.coins+=r.coins;
     if(t.homeworkBlock)hwApplyCompleted(r);
-    result.levelCoins=applyLevelRewards();
+    result.achievements=awardAchievements();
+   result.levelCoins=applyLevelRewards();
    }
    result.runId=r.id;result.points={xp:r.xp,coins:r.coins};result.status=r.status;result.overrun=points.overrun;
    result.penaltyPending=r.penaltyDecision==='pending';
@@ -911,6 +977,8 @@ async function demoCall(path,method,body){let result={ok:true};
    creditXp(r.xp);db.wallet.coins+=r.coins;
    if(r.homeworkActual)hwApplyCompleted(r);
    if(r.spontaneous)result.bonus=awardSpontaneousChallenges(r.day);
+   result.achievements=awardAchievements();
+   result.achievements=awardAchievements();
    result.levelCoins=applyLevelRewards();
   }
   if(r.penaltyDecision==='pending'){
